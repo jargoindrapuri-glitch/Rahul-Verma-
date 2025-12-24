@@ -3,7 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { AppState, Transaction, AddictionLog, UserProfile, QuickAddPreset } from '../types';
 import { Card, Button, Input, ProgressBar } from '../components/UI';
 import { DEFAULT_QUICK_ADDS, formatDate } from '../constants';
-import { Wallet, Settings2, X, Plus, History, Activity, TrendingUp, BarChart3, Edit3, Calendar } from 'lucide-react';
+import { Wallet, Settings2, X, Plus, History, Activity, TrendingUp, BarChart3, Edit3, Calendar, PieChart } from 'lucide-react';
 import QuickEntryModal from './QuickEntryModal';
 import ManualEntryModal from './ManualEntryModal';
 
@@ -58,6 +58,56 @@ export default function Finance({ state, onAddTransaction, onUpdateProfile }: Pr
 
   const maxSpend = Math.max(...chartData.map(d => d.spend), 100);
 
+  // --- Monthly Breakdown Logic ---
+  const monthlyStats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const expenses = state.transactions.filter(t => {
+        const d = new Date(t.timestamp);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear && t.type === 'EXPENSE';
+    });
+
+    const totals: Record<string, number> = {};
+    expenses.forEach(t => {
+        totals[t.category] = (totals[t.category] || 0) + t.amount;
+    });
+
+    const total = Object.values(totals).reduce((a, b) => a + b, 0);
+
+    const sorted = Object.entries(totals)
+        .sort(([, a], [, b]) => b - a)
+        .map(([cat, amount], idx) => ({
+            category: cat,
+            amount,
+            percentage: total ? (amount / total) * 100 : 0,
+            color: [
+                '#f59e0b', // Gold
+                '#10b981', // Emerald
+                '#3b82f6', // Blue
+                '#ef4444', // Red
+                '#a855f7', // Purple
+                '#71717a'  // Zinc
+            ][idx % 6]
+        }));
+
+    return { total, categories: sorted };
+  }, [state.transactions]);
+
+  // Conic Gradient for Pie Chart
+  const pieGradient = useMemo(() => {
+    if (monthlyStats.total === 0) return 'conic-gradient(#27272a 0% 100%)'; // Empty state ring
+    
+    let currentDeg = 0;
+    return 'conic-gradient(' + monthlyStats.categories.map(cat => {
+        const deg = (cat.percentage / 100) * 360;
+        const str = `${cat.color} ${currentDeg}deg ${currentDeg + deg}deg`;
+        currentDeg += deg;
+        return str;
+    }).join(', ') + ')';
+  }, [monthlyStats]);
+
   return (
     <div className="space-y-6 animate-fade-in pb-20">
       <header className="flex flex-col gap-4 border-b border-dark-border pb-4">
@@ -110,7 +160,6 @@ export default function Finance({ state, onAddTransaction, onUpdateProfile }: Pr
                 </div>
                 
                 <div className="space-y-6">
-                    {/* Fix: Explicitly cast Object.entries to provide the correct type for 'txns' array */}
                     {(Object.entries(groupedTransactions) as [string, Transaction[]][]).map(([date, txns]) => (
                         <div key={date} className="space-y-2">
                             <div className="flex items-center gap-2 px-1">
@@ -149,8 +198,9 @@ export default function Finance({ state, onAddTransaction, onUpdateProfile }: Pr
         </div>
       ) : (
         <div className="space-y-6">
+            {/* Spending Velocity Chart */}
             <Card className="bg-zinc-900 shadow-xl">
-                <div className="flex items-center gap-2 mb-6"><BarChart3 size={16} className="text-gold-500" /><h3 className="text-[10px] text-dark-muted uppercase font-black">Spending Velocity</h3></div>
+                <div className="flex items-center gap-2 mb-6"><BarChart3 size={16} className="text-gold-500" /><h3 className="text-[10px] text-dark-muted uppercase font-black">Spending Velocity (7 Days)</h3></div>
                 <div className="flex items-end gap-2 h-40 w-full px-2">
                     {chartData.map((d, i) => (
                         <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
@@ -158,6 +208,53 @@ export default function Finance({ state, onAddTransaction, onUpdateProfile }: Pr
                             <span className="text-[9px] font-black text-dark-muted uppercase">{d.date}</span>
                         </div>
                     ))}
+                </div>
+            </Card>
+
+            {/* Monthly Breakdown Pie Chart */}
+            <Card className="bg-zinc-900 shadow-xl">
+                <div className="flex items-center gap-2 mb-6">
+                    <PieChart size={16} className="text-indigo-500" />
+                    <h3 className="text-[10px] text-dark-muted uppercase font-black">Monthly Breakdown</h3>
+                </div>
+                
+                <div className="flex items-center gap-6">
+                    {/* The Chart */}
+                    <div className="relative w-32 h-32 shrink-0">
+                        <div 
+                            className="w-full h-full rounded-full"
+                            style={{ background: pieGradient }}
+                        />
+                        {/* Inner Circle to make it a donut */}
+                        <div className="absolute inset-4 bg-zinc-900 rounded-full flex items-center justify-center flex-col">
+                             <span className="text-[8px] text-dark-muted uppercase font-black">Total</span>
+                             <span className="text-xs font-black text-white">₹{monthlyStats.total.toLocaleString()}</span>
+                        </div>
+                    </div>
+
+                    {/* Top 3 Legend */}
+                    <div className="flex-1 space-y-3">
+                        {monthlyStats.categories.slice(0, 3).map((cat, i) => (
+                            <div key={cat.category} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cat.color }}></div>
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-bold text-white uppercase">{cat.category}</span>
+                                        <span className="text-[8px] text-dark-muted">{cat.percentage.toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                                <span className="text-[10px] font-black text-white">₹{cat.amount.toLocaleString()}</span>
+                            </div>
+                        ))}
+                        {monthlyStats.categories.length === 0 && (
+                            <div className="text-[9px] text-dark-muted text-center italic">No data this month</div>
+                        )}
+                        {monthlyStats.categories.length > 3 && (
+                            <div className="text-[8px] text-dark-muted text-center pt-1 border-t border-dark-border">
+                                + {monthlyStats.categories.length - 3} other categories
+                            </div>
+                        )}
+                    </div>
                 </div>
             </Card>
         </div>

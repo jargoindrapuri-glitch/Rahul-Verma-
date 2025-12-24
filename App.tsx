@@ -106,6 +106,23 @@ export default function App() {
     }));
   };
 
+  const handleImportData = (newData: AppState) => {
+    try {
+      // Basic validation: Check for essential keys
+      if (newData.profile && newData.entries && Array.isArray(newData.transactions)) {
+        setState({
+          ...newData,
+          currentDate: formatDate(new Date()) // Always use real-time today
+        });
+        showToast("Backup Restored Successfully");
+      } else {
+        showToast("Error: Invalid Backup Structure");
+      }
+    } catch (e) {
+      showToast("Import Failed");
+    }
+  };
+
   const renderScreen = () => {
     if (!state.profile.isOnboarded) {
       return <Onboarding onComplete={(profileData) => {
@@ -121,14 +138,17 @@ export default function App() {
       case 'home':
         return <Dashboard state={state} onNavigate={setCurrentScreen} onUpdateEntry={updateEntry} onAddTransaction={addTransaction} />;
       case 'journal':
-        // Fix: Remove unused props onAddTransaction and onAddAddictionLog to match Journal component Props defined in Journal.tsx
         return <Journal state={state} onUpdateEntry={updateEntry} onNavigate={setCurrentScreen} />;
       case 'finance':
         return <Finance state={state} onAddTransaction={addTransaction} onAddAddictionLog={addAddictionLog} onUpdateProfile={(data) => setState(prev => ({ ...prev, profile: { ...prev.profile, ...data } }))} />;
       case 'goals':
         return <Goals state={state} onAddGoal={(g) => setState(prev => ({ ...prev, goals: [...prev.goals, g] }))} onToggleGoal={(id) => setState(prev => ({ ...prev, goals: prev.goals.map(g => g.id === id ? { ...g, completed: !g.completed } : g) }))} onUpdateGoal={(id, data) => setState(prev => ({ ...prev, goals: prev.goals.map(g => g.id === id ? { ...g, ...data } : g) }))} />;
       case 'settings':
-        return <UserSettings state={state} onReset={() => { if(confirm('Erase all data?')) { localStorage.clear(); window.location.reload(); } }} />;
+        return <UserSettings 
+          state={state} 
+          onImport={handleImportData}
+          onReset={() => { if(confirm('Erase all data? This will factory reset the system.')) { localStorage.clear(); window.location.reload(); } }} 
+        />;
       default:
         return <Dashboard state={state} onNavigate={setCurrentScreen} onUpdateEntry={updateEntry} onAddTransaction={addTransaction} />;
     }

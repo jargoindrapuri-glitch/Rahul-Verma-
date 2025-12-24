@@ -89,6 +89,8 @@ export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdat
   const budgetLimit = state.profile.dailyBudget || 500;
   const budgetLeft = budgetLimit - todayFinance.spend;
 
+  const historyEntry = historyDay ? state.entries[historyDay] : null;
+
   return (
     <div className="space-y-6 animate-fade-in pb-16">
       {/* Header */}
@@ -192,7 +194,7 @@ export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdat
         </Card>
       </div>
 
-      {/* MISSION FOCUS & TODO LIST (Consolidated "Better Way") */}
+      {/* MISSION FOCUS & TODO LIST */}
       <section className="space-y-4">
         <div className="flex justify-between items-center px-1">
           <h3 className="text-[10px] text-dark-muted uppercase tracking-[0.3em] font-black flex items-center gap-2">
@@ -292,25 +294,86 @@ export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdat
         </div>
       </section>
 
-      {/* History Modal */}
+      {/* Enhanced History Modal */}
       {historyDay && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/98 backdrop-blur-2xl animate-fade-in">
-          <div className="w-full max-w-sm relative bg-zinc-950 border border-zinc-800 rounded-[48px] p-8 shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-            <button onClick={() => setHistoryDay(null)} className="absolute top-8 right-8 text-dark-muted hover:text-white transition-colors p-2 z-10"><X size={28}/></button>
-            <div className="flex flex-col items-center text-center mb-8 relative z-10">
-                <div className={`w-24 h-24 rounded-[36px] flex items-center justify-center text-4xl font-black mb-6 shadow-2xl border-t border-white/20 ${getRatingStyle(state.entries[historyDay]?.rating)}`}>
-                    {state.entries[historyDay]?.rating || '--'}
+          <div className="w-full max-w-sm relative bg-zinc-950 border border-zinc-800 rounded-[48px] p-6 shadow-2xl ring-1 ring-white/10 overflow-hidden max-h-[90vh] overflow-y-auto scrollbar-hide">
+             {/* Close Button */}
+             <button onClick={() => setHistoryDay(null)} className="absolute top-6 right-6 text-dark-muted hover:text-white transition-colors p-2 z-20"><X size={24}/></button>
+
+             {/* Header: Rating & Date */}
+             <div className="flex flex-col items-center text-center mb-6 relative z-10 pt-4">
+                <div className={`w-20 h-20 rounded-[30px] flex items-center justify-center text-3xl font-black mb-4 shadow-2xl border-t border-white/20 ${getRatingStyle(historyEntry?.rating)}`}>
+                    {historyEntry?.rating || '-'}
                 </div>
-                <h2 className="text-xl font-black text-white uppercase tracking-tight">
-                    {new Date(historyDay).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+                <h2 className="text-lg font-black text-white uppercase tracking-tight">
+                    {new Date(historyDay).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
                 </h2>
+                <p className="text-[10px] text-dark-muted font-bold uppercase tracking-widest opacity-60">
+                    {new Date(historyDay).getFullYear()} Archive
+                </p>
             </div>
-            <div className="space-y-4 relative z-10">
-                <Card className="bg-white/5 border-zinc-800 p-5 rounded-[24px]">
-                    <p className="text-[9px] text-dark-muted font-black uppercase tracking-widest mb-2">Objectives Met</p>
-                    <span className="text-xl font-black text-white">{state.entries[historyDay]?.todos?.filter(t => t.completed).length || 0} / {state.entries[historyDay]?.todos?.length || 0}</span>
+
+            <div className="space-y-3 relative z-10">
+                {/* Vitals Grid */}
+                <div className="grid grid-cols-3 gap-3">
+                    {/* Mood */}
+                    <Card className="bg-zinc-900/50 border-zinc-800 p-3 flex flex-col items-center justify-center gap-1">
+                        <span className="text-2xl">{MOODS.find(m => m.value === historyEntry?.mood)?.label || '😶'}</span>
+                        <span className="text-[7px] font-black uppercase text-dark-muted">Mood</span>
+                    </Card>
+                    
+                    {/* Energy */}
+                    <Card className="bg-zinc-900/50 border-zinc-800 p-3 flex flex-col items-center justify-center gap-1">
+                         <div className="flex gap-0.5 items-end h-6">
+                            {[1,2,3,4,5].map(l => (
+                                <div key={l} className={`w-1 rounded-sm ${l <= (historyEntry?.energy || 0) ? 'bg-gold-500' : 'bg-zinc-800'}`} style={{ height: `${l*20}%`}}></div>
+                            ))}
+                         </div>
+                        <span className="text-[7px] font-black uppercase text-dark-muted">Energy</span>
+                    </Card>
+
+                    {/* Spend */}
+                     <Card className="bg-zinc-900/50 border-zinc-800 p-3 flex flex-col items-center justify-center gap-1">
+                        <span className="text-sm font-black text-white">₹{getDayFinance(historyDay).spend}</span>
+                        <span className="text-[7px] font-black uppercase text-dark-muted">Spent</span>
+                    </Card>
+                </div>
+
+                {/* Primary Stats */}
+                <Card className="bg-zinc-900/50 border-zinc-800 p-4 flex items-center justify-between">
+                     <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500"><CheckCircle2 size={16}/></div>
+                        <div>
+                            <p className="text-[9px] text-dark-muted font-black uppercase tracking-widest">Objectives</p>
+                            <p className="text-xs font-bold text-white">{historyEntry?.todos?.filter(t => t.completed).length || 0} / {historyEntry?.todos?.length || 0} Completed</p>
+                        </div>
+                     </div>
                 </Card>
-                <Button variant="secondary" className="w-full h-14 mt-4 font-black uppercase tracking-[0.2em] rounded-[24px]" onClick={() => setHistoryDay(null)}>Close Archive</Button>
+
+                {/* Journal Data */}
+                {historyEntry?.intention && (
+                    <div className="p-4 rounded-2xl border border-dashed border-zinc-800">
+                        <p className="text-[8px] text-blue-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1"><Zap size={10}/> Prime Focus</p>
+                        <p className="text-sm font-medium text-zinc-300">"{historyEntry.intention}"</p>
+                    </div>
+                )}
+
+                {historyEntry?.memory && (
+                    <div className="p-4 rounded-2xl border border-dashed border-zinc-800">
+                        <p className="text-[8px] text-gold-500 font-black uppercase tracking-widest mb-1 flex items-center gap-1"><Target size={10}/> The Win</p>
+                        <p className="text-sm font-medium text-zinc-300">{historyEntry.memory}</p>
+                    </div>
+                )}
+                
+                 {historyEntry?.promptAnswer && (
+                    <div className="p-4 rounded-2xl bg-zinc-900/30 border border-zinc-800">
+                        <p className="text-[8px] text-dark-muted font-black uppercase tracking-widest mb-2">Journal Log</p>
+                        <p className="text-xs text-zinc-400 italic leading-relaxed line-clamp-4">"{historyEntry.promptAnswer}"</p>
+                    </div>
+                )}
+
+                <Button variant="secondary" className="w-full h-12 mt-2 font-black uppercase tracking-[0.2em] rounded-[20px]" onClick={() => setHistoryDay(null)}>Close</Button>
             </div>
           </div>
         </div>
