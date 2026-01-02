@@ -1,14 +1,38 @@
 
-export type Screen = 'onboarding' | 'home' | 'journal' | 'finance' | 'goals' | 'settings';
+
+export type Screen = 'onboarding' | 'home' | 'journal' | 'finance' | 'goals' | 'settings' | 'habits';
+
+export type BudgetMode = 'none' | 'daily' | 'weekly' | 'monthly';
+
+export interface CategoryDef {
+  id: string;
+  label: string; // e.g. "Cigarette"
+  icon: string; // e.g. "🚬"
+  price: number; // Default price
+  color?: string;
+}
+
+export interface HabitDef {
+  id: string;
+  title: string;
+  type: 'positive' | 'negative'; // positive = build (Gym), negative = quit (Smoking)
+  icon: string;
+}
 
 export interface UserProfile {
   name: string;
   startDate: string; // ISO Date
   intents: string[];
   reminderMorning: string;
-  reminderNight: string;
   isOnboarded: boolean;
+  
+  // Finance Settings
   dailyBudget?: number;
+  budgetMode?: BudgetMode;
+  customCategories?: CategoryDef[];
+  
+  // Habits
+  habits?: HabitDef[];
   habitLimits?: Record<string, number>; // e.g. { "Cigarettes": 2 }
   habitOverrides?: Record<string, number>; // ID -> New Price mapping
 }
@@ -50,28 +74,12 @@ export interface DailyEntry {
     impulse: boolean;
     isLogged: boolean;
   };
-  addictionLog?: {
-    smoked: boolean;
-    amount: number;
-    resisted: boolean;
-  };
+
+  // Binary Habit Tracking
+  habitStatus?: Record<string, boolean>; // id -> true (done/occurred)
 
   gratitude?: string;
   isLocked: boolean;
-  nightReflection?: NightReflection;
-}
-
-export interface NightReflection {
-  mood: Mood;
-  followedFocus: boolean;
-  win: string;
-  regret: string;
-  gratitude: string;
-  // New additions
-  smokedToday?: boolean;
-  impulseBuy?: boolean;
-  regretSpendAmount?: number;
-  resistedCraving?: boolean;
 }
 
 // FinTrace & Habit Types
@@ -125,4 +133,16 @@ export interface AppState {
   addictionLogs: AddictionLog[];
   goals: Goal[];
   currentDate: string; // YYYY-MM-DD
+}
+
+export interface NightReflection {
+  mood: Mood;
+  followedFocus: boolean;
+  win: string;
+  regret: string;
+  gratitude: string;
+  smokedToday: boolean;
+  impulseBuy: boolean;
+  resistedCraving: boolean;
+  regretSpendAmount?: number;
 }

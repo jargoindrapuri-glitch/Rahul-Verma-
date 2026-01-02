@@ -1,11 +1,12 @@
 
 import React, { useState, useMemo } from 'react';
-import { AppState, Screen, DailyEntry, Transaction, QuickAddPreset, ToDoItem } from '../types';
+import { AppState, Screen, DailyEntry, Transaction, QuickAddPreset, ToDoItem, CategoryDef, HabitType } from '../types';
 import { Card, Button, Input } from '../components/UI';
-import { formatDate, DEFAULT_QUICK_ADDS, MOODS, generateId } from '../constants';
+import { formatDate, DEFAULT_QUICK_ADDS, MOODS, generateId, getPromptForDate } from '../constants';
 import { 
   Flame, Wallet, Plus, ChevronRight, Target, Zap, X, ShieldCheck, 
-  Activity, CheckCircle2, IndianRupee, ChevronLeft, Trash2, LayoutList
+  Activity, CheckCircle2, LayoutList, Layers, ArrowRight, Sun, Moon, BookOpen, Check,
+  ChevronLeft, Trash2
 } from 'lucide-react';
 import QuickEntryModal from './QuickEntryModal';
 
@@ -14,26 +15,68 @@ interface Props {
   onNavigate: (screen: Screen) => void;
   onUpdateEntry: (date: string, data: Partial<DailyEntry>) => void;
   onAddTransaction: (txn: Omit<Transaction, 'id' | 'timestamp'> & { timestamp?: string }) => void;
+  currentTheme?: 'light' | 'dark';
+  onToggleTheme?: () => void;
 }
 
-export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdateEntry }: Props) {
+// Helper to unify category types for display
+const resolveCategories = (state: AppState) => {
+    if (state.profile.customCategories && state.profile.customCategories.length > 0) {
+        return state.profile.customCategories.map(c => ({
+            id: c.id,
+            label: c.label as HabitType,
+            price: c.price,
+            unit: 'unit', // Default for custom
+            icon: c.icon
+        } as QuickAddPreset));
+    }
+    return DEFAULT_QUICK_ADDS;
+};
+
+// --- MANUAL SCORING SYSTEM (RED -> YELLOW -> GREEN) ---
+const SCORE_COLORS = {
+  0: '#18181b', // No Data
+  1: '#7f1d1d', // Dark Red
+  2: '#dc2626', // Red
+  3: '#f87171', // Light Red
+  4: '#c2410c', // Dark Orange/Yellow
+  5: '#d97706', // Dark Yellow
+  6: '#eab308', // Yellow
+  7: '#facc15', // Light Yellow
+  8: '#84cc16', // Light Green
+  9: '#22c55e', // Green
+  10: '#10b981' // Bright Green/Emerald
+};
+
+const getScoreColor = (score: number) => {
+  if (!score || score === 0) return SCORE_COLORS[0];
+  const clamped = Math.max(1, Math.min(10, Math.round(score)));
+  return (SCORE_COLORS as any)[clamped];
+};
+
+export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdateEntry, currentTheme, onToggleTheme }: Props) {
   const [selectedQuickAdd, setSelectedQuickAdd] = useState<QuickAddPreset | null>(null);
   const [historyDay, setHistoryDay] = useState<string | null>(null);
   const [newTaskText, setNewTaskText] = useState('');
   const todayStr = formatDate(new Date());
 
-  const getRatingStyle = (rating: number | undefined) => {
-    if (!rating) return 'bg-zinc-800/10 border-zinc-800/30';
-    if (rating <= 2) return 'bg-red-950 border-red-700 shadow-[inset_0_0_8px_rgba(153,27,27,0.4)]';
-    if (rating <= 4) return 'bg-red-500/80 border-red-400';
-    if (rating <= 6) return 'bg-amber-500/80 border-amber-400';
-    if (rating <= 8) return 'bg-emerald-500/80 border-emerald-400';
-    return 'bg-gold-500 border-gold-300 shadow-[0_0_15px_rgba(245,158,11,0.4)] scale-110 ring-1 ring-white/20 z-10';
+  const categories = resolveCategories(state);
+
+  // --- MANUAL SCORE LOGIC ---
+  const getManualScore = (dateStr: string) => {
+      const entry = state.entries[dateStr];
+      return entry?.rating || 0;
   };
 
-  const todayEntry = state.entries[todayStr] || { date: todayStr, todos: [], isLocked: false, rating: 5 };
+  const todayScore = getManualScore(todayStr);
+  const todayColor = getScoreColor(todayScore);
+
+  const todayEntry = state.entries[todayStr] || { date: todayStr, todos: [], isLocked: false, rating: 0 };
   const todos = todayEntry.todos || [];
   const primaryTask = todos[0];
+  const completedCount = todos.filter(t => t.completed).length;
+  const totalCount = todos.length;
+  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const handleTaskAdd = () => {
     if (!newTaskText.trim()) return;
@@ -73,23 +116,37 @@ export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdat
     let count = 0;
     const sortedDates = Object.keys(state.entries).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     for (const d of sortedDates) {
-      if (state.entries[d].isLocked) count++;
+      const score = state.entries[d]?.rating || 0;
+      if (score >= 5) count++; 
       else break;
     }
     return count;
   }, [state.entries]);
 
-  const getDayFinance = (date: string) => {
+  // --- LOCAL TIME FINANCE LOGIC ---
+  const now = new Date();
+  const todayTxns = state.transactions.filter(t => {
+      const d = new Date(t.timestamp);
+      return d.getDate() === now.getDate() && 
+             d.getMonth() === now.getMonth() && 
+             d.getFullYear() === now.getFullYear();
+  });
+  const todaySpendAmount = todayTxns.filter(t => t.type === 'EXPENSE').reduce((a, b) => a + b.amount, 0);
+
+  // Helper for History modal
+  const getDayFinanceLegacy = (date: string) => {
     const txns = state.transactions.filter(t => t.timestamp.startsWith(date));
     const spend = txns.filter(t => t.type === 'EXPENSE').reduce((acc, t) => acc + t.amount, 0);
     return { spend };
   };
 
-  const todayFinance = getDayFinance(todayStr);
-  const budgetLimit = state.profile.dailyBudget || 500;
-  const budgetLeft = budgetLimit - todayFinance.spend;
+  const getDayTransactions = (date: string) => {
+      return state.transactions.filter(t => t.timestamp.startsWith(date));
+  };
 
   const historyEntry = historyDay ? state.entries[historyDay] : null;
+  const historyScore = historyDay ? getManualScore(historyDay) : 0;
+  const historyColor = historyDay ? getScoreColor(historyScore) : '#333';
 
   return (
     <div className="space-y-6 animate-fade-in pb-16">
@@ -103,18 +160,29 @@ export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdat
             {state.profile.name?.charAt(0) || 'S'}
           </div>
           <div>
-            <h1 className="text-xl font-black text-white tracking-tight leading-none uppercase">{state.profile.name || 'Seeker'}</h1>
+            <h1 className="text-xl font-black text-dark-text tracking-tight leading-none uppercase">{state.profile.name || 'Seeker'}</h1>
             <p className="text-[9px] text-dark-muted font-bold uppercase tracking-[0.3em] mt-1.5 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> SYSTEM NOMINAL
             </p>
           </div>
         </div>
-        <div className="bg-zinc-900 border border-dark-border px-4 py-2 rounded-2xl flex items-center gap-2.5 shadow-lg">
-          <Flame size={16} className="text-gold-500 fill-gold-500" />
-          <span className="text-white font-black text-sm">{streak}</span>
+        <div className="flex items-center gap-2">
+            {/* Theme Toggle Button */}
+             <button 
+                onClick={onToggleTheme} 
+                className="w-10 h-10 rounded-2xl border bg-dark-card border-dark-border text-dark-muted flex items-center justify-center transition-all hover:border-gold-500 hover:text-gold-500"
+             >
+                 {currentTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+             </button>
+
+             {/* Streak */}
+            <div className="bg-dark-card border border-dark-border px-4 py-2 rounded-2xl flex items-center gap-2.5 shadow-lg h-10">
+                <Flame size={16} className="text-gold-500 fill-gold-500" />
+                <span className="text-dark-text font-black text-sm">{streak}</span>
+            </div>
         </div>
       </header>
-
+      
       {/* Pulse Archive */}
       <section className="animate-slide-up relative">
         <div className="flex justify-between items-center mb-4 px-1">
@@ -130,32 +198,39 @@ export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdat
           {pulseGrid.map((month, idx) => (
             <Card 
               key={`${month.name}-${month.year}-${idx}`} 
-              className="min-w-[280px] w-[85%] snap-center bg-zinc-950/40 border-dark-border p-5 shadow-2xl shrink-0"
+              className="min-w-[280px] w-[85%] snap-center bg-dark-card/50 border-dark-border p-5 shadow-2xl shrink-0"
             >
               <div className="flex justify-between items-center mb-4">
                 <div className="flex flex-col">
                   <p className="text-xs font-black text-gold-500 uppercase tracking-[0.2em]">{month.name}</p>
-                  <p className="text-[8px] text-zinc-700 font-bold uppercase mt-0.5">{month.year}</p>
+                  <p className="text-[8px] text-dark-muted font-bold uppercase mt-0.5">{month.year}</p>
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-1.5">
                 {['S','M','T','W','T','F','S'].map((day, i) => (
-                  <div key={i} className="text-[7px] text-zinc-800 font-black text-center mb-1">{day}</div>
+                  <div key={i} className="text-[7px] text-dark-muted font-black text-center mb-1">{day}</div>
                 ))}
                 {month.days.map((date, dayIdx) => {
                   if (date === null) return <div key={`pad-${dayIdx}`} className="aspect-square opacity-0" />;
-                  const entry = state.entries[date];
+                  const score = getManualScore(date);
+                  const color = getScoreColor(score);
                   const isFuture = new Date(date) > new Date();
                   const isToday = date === todayStr;
+                  const hasScore = score > 0;
+                  
                   return (
                     <button 
                       key={date}
                       disabled={isFuture}
                       onClick={() => setHistoryDay(date)}
-                      className={`aspect-square rounded-md border transition-all duration-300
-                        ${getRatingStyle(entry?.rating)} 
-                        ${isFuture ? 'opacity-5 cursor-not-allowed border-transparent' : 'hover:scale-110 active:scale-95'} 
-                        ${isToday ? 'ring-1 ring-white ring-offset-2 ring-offset-dark-bg scale-105 shadow-[0_0_10px_rgba(255,255,255,0.2)]' : ''}`}
+                      style={{ 
+                          backgroundColor: isFuture ? 'transparent' : (hasScore ? color : 'transparent'),
+                          borderColor: (isFuture || !hasScore) ? 'var(--border-color)' : color
+                      }}
+                      className={`aspect-square rounded-sm border transition-all duration-300
+                        ${isFuture ? 'cursor-not-allowed border-transparent' : 'hover:scale-125 active:scale-95'} 
+                        ${isToday ? 'ring-2 ring-gold-500 ring-offset-2 ring-offset-dark-bg scale-110 shadow-lg' : ''}
+                      `}
                     />
                   );
                 })}
@@ -167,28 +242,32 @@ export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdat
 
       {/* Vitals */}
       <div className="grid grid-cols-2 gap-4">
+        {/* TODAY SPENT CARD */}
         <Card 
-          className="bg-zinc-950/50 border-dark-border cursor-pointer active:scale-[0.97] transition-all p-5 shadow-xl hover:border-gold-500/30"
+          className="bg-dark-card border-dark-border cursor-pointer active:scale-[0.97] transition-all p-5 shadow-xl hover:border-gold-500/30"
           onClick={() => onNavigate('finance')}
         >
           <div className="flex justify-between items-start mb-6 text-gold-500">
              <div className="p-1.5 bg-gold-500/10 rounded-lg border border-gold-500/20"><Wallet size={16} /></div>
              <ChevronRight size={14} className="text-dark-muted" />
           </div>
-          <div className={`text-2xl font-black tracking-tight ${budgetLeft < 0 ? 'text-red-500' : 'text-white'}`}>₹{budgetLeft}</div>
-          <p className="text-[8px] text-dark-muted uppercase font-black tracking-[0.15em] mt-1.5">Ammo Remaining</p>
+          <div className="text-2xl font-black tracking-tight text-dark-text">₹{todaySpendAmount}</div>
+          <p className="text-[8px] text-dark-muted uppercase font-black tracking-[0.15em] mt-1.5">Today Spent</p>
         </Card>
 
+        {/* DISCIPLINE CARD */}
         <Card 
-          className="bg-zinc-950/50 border-dark-border cursor-pointer active:scale-[0.97] transition-all p-5 shadow-xl hover:border-emerald-500/30"
+          className="bg-dark-card border-dark-border cursor-pointer active:scale-[0.97] transition-all p-5 shadow-xl hover:border-white/30 relative overflow-hidden"
           onClick={() => onNavigate('journal')}
+          style={{ borderColor: todayScore > 0 ? todayColor : 'var(--border-color)' }}
         >
-          <div className="flex justify-between items-start mb-6 text-emerald-400">
-             <div className="p-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20"><ShieldCheck size={16} /></div>
+          <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-gold-500/20 to-transparent opacity-10 rounded-full blur-xl -mr-4 -mt-4"></div>
+          <div className="flex justify-between items-start mb-6" style={{ color: todayScore > 0 ? todayColor : 'var(--text-muted)' }}>
+             <div className="p-1.5 bg-white/5 rounded-lg border border-white/10"><ShieldCheck size={16} /></div>
              <ChevronRight size={14} className="text-dark-muted" />
           </div>
-          <div className="text-2xl font-black tracking-tight text-white">
-            {todayEntry?.rating || '--'} <span className="text-[10px] text-dark-muted font-bold opacity-60">/ 10</span>
+          <div className="text-2xl font-black tracking-tight text-dark-text flex items-end gap-1">
+            {todayScore > 0 ? todayScore : '-'} <span className="text-[10px] text-dark-muted font-bold opacity-60 mb-1">/ 10</span>
           </div>
           <p className="text-[8px] text-dark-muted uppercase font-black tracking-[0.15em] mt-1.5">Discipline Index</p>
         </Card>
@@ -200,180 +279,292 @@ export default function Dashboard({ state, onNavigate, onAddTransaction, onUpdat
           <h3 className="text-[10px] text-dark-muted uppercase tracking-[0.3em] font-black flex items-center gap-2">
             <LayoutList size={12} className="text-gold-500" /> Mission Objectives
           </h3>
-          <span className="text-[9px] text-gold-500 font-bold uppercase tracking-widest">{todos.filter(t => t.completed).length}/{todos.length} Done</span>
+          <span className="text-[9px] text-gold-500 font-bold uppercase tracking-widest">{completedCount}/{totalCount} Done</span>
         </div>
 
-        {/* Commander's Intent (First/Primary Task) */}
+        {/* Mission Progress Bar */}
+        <div className="w-full h-1 bg-dark-card rounded-full overflow-hidden">
+            <div className="h-full bg-gold-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+        </div>
+
+        {/* Commander's Intent (Primary Task) */}
         {primaryTask ? (
             <Card 
-                className={`relative overflow-hidden border-gold-500/30 active:scale-[0.98] transition-all p-6 bg-zinc-900/40 ${primaryTask.completed ? 'opacity-50' : 'ring-1 ring-gold-500/20 shadow-[0_0_20px_rgba(245,158,11,0.05)]'}`}
+                className={`relative overflow-hidden border border-gold-500/30 active:scale-[0.99] transition-all p-5 bg-gradient-to-br from-dark-card to-dark-bg group`}
             >
-                <div className="flex items-center gap-5">
+                <div className="absolute top-0 right-0 w-20 h-20 bg-gold-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 group-hover:bg-gold-500/10 transition-colors"></div>
+                <div className="flex items-start gap-4 relative z-10">
                     <button 
                         onClick={() => toggleTask(primaryTask.id)}
-                        className={`w-12 h-12 rounded-full border-2 flex items-center justify-center shrink-0 shadow-lg transition-all ${primaryTask.completed ? 'bg-emerald-500 border-emerald-500 text-dark-bg' : 'bg-gold-500/5 border-gold-500 text-gold-500 hover:bg-gold-500 hover:text-dark-bg'}`}
+                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center shrink-0 shadow-lg transition-all mt-1 ${primaryTask.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-transparent border-gold-500 text-gold-500 hover:bg-gold-500 hover:text-white'}`}
                     >
-                        {primaryTask.completed ? <CheckCircle2 size={24} /> : <Target size={24} />}
+                        {primaryTask.completed ? <CheckCircle2 size={16} /> : <Target size={16} />}
                     </button>
                     <div className="flex-1 min-w-0">
-                        <h4 className="text-[8px] text-gold-500 font-black uppercase tracking-[0.25em] mb-1.5 flex items-center gap-1.5">
-                            <Zap size={10} className="fill-gold-500" /> Commander's Intent
-                        </h4>
-                        <p className={`text-lg font-black leading-tight truncate ${primaryTask.completed ? 'line-through text-dark-muted' : 'text-white'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                            <Zap size={10} className="fill-gold-500 text-gold-500" /> 
+                            <span className="text-[8px] text-gold-500 font-black uppercase tracking-[0.2em]">Commander's Intent</span>
+                        </div>
+                        <p className={`text-base font-bold leading-tight ${primaryTask.completed ? 'line-through text-dark-muted' : 'text-dark-text'}`}>
                             {primaryTask.text}
                         </p>
                     </div>
                 </div>
             </Card>
         ) : (
-            <div className="py-12 border border-dashed border-dark-border rounded-[32px] flex flex-col items-center justify-center text-dark-muted opacity-30">
-                <Target size={32} className="mb-2" />
-                <p className="text-[10px] font-black uppercase tracking-[0.2em]">Deploy First Mission</p>
+            <div className="py-8 border border-dashed border-dark-border rounded-2xl flex flex-col items-center justify-center text-dark-muted opacity-40">
+                <Target size={24} className="mb-2" />
+                <p className="text-[9px] font-black uppercase tracking-[0.2em]">Deploy Primary Mission</p>
             </div>
         )}
 
         {/* Operational List */}
-        <div className="space-y-2.5">
+        <div className="space-y-2">
             {todos.slice(1).map(todo => (
-                <div key={todo.id} className={`flex items-center gap-4 p-4 bg-zinc-950 border border-dark-border rounded-2xl group transition-all ${todo.completed ? 'opacity-40' : 'hover:border-zinc-700'}`}>
+                <div key={todo.id} className={`flex items-center gap-3 p-3 bg-dark-card border border-dark-border rounded-xl group transition-all ${todo.completed ? 'opacity-40' : 'hover:border-zinc-500'}`}>
                     <button 
                         onClick={() => toggleTask(todo.id)}
-                        className={`w-6 h-6 rounded-lg border-2 shrink-0 flex items-center justify-center transition-all ${todo.completed ? 'bg-emerald-500 border-emerald-500 text-dark-bg' : 'border-dark-border group-hover:border-gold-500'}`}
+                        className={`w-5 h-5 rounded-md border-2 shrink-0 flex items-center justify-center transition-all ${todo.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-dark-muted bg-dark-bg group-hover:border-gold-500'}`}
                     >
-                        {todo.completed && <CheckCircle2 size={12} />}
+                        {todo.completed && <CheckCircle2 size={10} />}
                     </button>
-                    <span className={`flex-1 text-sm font-bold truncate ${todo.completed ? 'line-through text-dark-muted' : 'text-white'}`}>{todo.text}</span>
+                    <span className={`flex-1 text-sm font-medium truncate ${todo.completed ? 'line-through text-dark-muted' : 'text-dark-text'}`}>{todo.text}</span>
                     <button onClick={() => deleteTask(todo.id)} className="opacity-0 group-hover:opacity-100 p-1 text-dark-muted hover:text-red-500 transition-all"><Trash2 size={14} /></button>
                 </div>
             ))}
             
             {/* Quick Add Mission */}
-            <div className="flex gap-2 mt-4">
-                <Input 
-                    placeholder="New Objective..." 
-                    value={newTaskText} 
-                    onChange={e => setNewTaskText(e.target.value)} 
-                    onKeyPress={e => e.key === 'Enter' && handleTaskAdd()}
-                    className="h-12 bg-zinc-950 border-dark-border text-sm placeholder:text-dark-muted/40"
-                />
-                <button 
-                    onClick={handleTaskAdd}
-                    className="h-12 w-12 rounded-xl bg-gold-500 text-dark-bg flex items-center justify-center active:scale-90 transition-all shadow-xl shadow-gold-500/10"
-                >
-                    <Plus size={20} />
-                </button>
+            <div className="relative mt-2">
+                <div className="flex items-center gap-2 bg-dark-card border border-dark-border rounded-xl px-3 py-1 focus-within:border-gold-500/50 focus-within:ring-1 focus-within:ring-gold-500/20 transition-all">
+                    <Plus size={16} className="text-dark-muted" />
+                    <Input 
+                        placeholder="Add new directive..." 
+                        value={newTaskText} 
+                        onChange={e => setNewTaskText(e.target.value)} 
+                        onKeyPress={e => e.key === 'Enter' && handleTaskAdd()}
+                        className="h-10 bg-transparent border-none text-sm placeholder:text-dark-muted/40 focus:ring-0 px-0"
+                    />
+                    {newTaskText.length > 0 && (
+                        <button 
+                            onClick={handleTaskAdd}
+                            className="p-1.5 bg-gold-500 text-dark-bg rounded-lg hover:bg-gold-400 transition-colors"
+                        >
+                            <ArrowRight size={14} />
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
       </section>
 
-      {/* Log Action */}
-      <section>
-        <div className="flex justify-between items-center mb-4 px-1">
-          <h3 className="text-[10px] text-dark-muted uppercase tracking-[0.3em] font-black">Log Action</h3>
-          <button onClick={() => onNavigate('finance')} className="text-[9px] text-gold-500 font-black uppercase tracking-widest hover:underline">Full Ledger</button>
+      {/* Log Action - REDESIGNED GRID */}
+      <section className="space-y-4">
+        <div className="flex justify-between items-end px-1">
+           <div>
+              <h3 className="text-[10px] text-dark-muted uppercase tracking-[0.3em] font-black flex items-center gap-2">
+                <Layers size={12} className="text-gold-500" /> Logistics
+              </h3>
+           </div>
+           <button onClick={() => onNavigate('finance')} className="flex items-center gap-1 text-[9px] text-gold-500 font-black uppercase tracking-widest hover:text-dark-text transition-colors">
+              Full Ledger <ChevronRight size={10} />
+           </button>
         </div>
         
-        <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide px-1">
-          {DEFAULT_QUICK_ADDS.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setSelectedQuickAdd(item)}
-              className="flex-shrink-0 flex flex-col items-center gap-4 p-6 w-24 rounded-[40px] bg-zinc-950 border border-dark-border hover:border-gold-500/30 active:scale-95 transition-all shadow-xl"
-            >
-              <span className="text-3xl filter drop-shadow-md">{item.icon === 'cigarette' ? '🚬' : item.icon === 'burger' ? '🍔' : item.icon === 'coffee' ? '☕' : '🚕'}</span>
-              <span className="text-[8px] font-black text-white uppercase tracking-[0.1em]">{item.label}</span>
-            </button>
-          ))}
+        {/* Grid Layout replacing Horizontal Scroll */}
+        <div className="grid grid-cols-4 gap-3">
+          {categories.slice(0, 7).map(item => { // Limit items to prevent overflow if too many
+            const price = state.profile.habitOverrides?.[item.id] ?? item.price;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setSelectedQuickAdd(item)}
+                className="aspect-[4/5] bg-dark-card rounded-2xl border border-dark-border flex flex-col items-center justify-center gap-2 active:scale-95 transition-all hover:border-gold-500/50 hover:bg-dark-bg group relative"
+              >
+                {/* Icon */}
+                <div className="text-2xl filter drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    {item.icon === 'cigarette' ? '🚬' : item.icon === 'burger' ? '🍔' : item.icon === 'coffee' ? '☕' : item.icon === 'car' ? '🚕' : item.icon}
+                </div>
+                
+                {/* Details */}
+                <div className="text-center">
+                    <span className="block text-[9px] font-black text-dark-text">₹{price}</span>
+                    <span className="block text-[7px] font-bold text-dark-muted uppercase tracking-wider mt-0.5 truncate w-14">{item.label}</span>
+                </div>
+              </button>
+            );
+          })}
+          
           <button 
              onClick={() => onNavigate('finance')}
-             className="flex-shrink-0 flex flex-col items-center justify-center p-6 w-24 rounded-[40px] bg-gold-500/5 border border-dashed border-gold-500/20 text-gold-500 active:scale-95 transition-all hover:bg-gold-500/10"
+             className="aspect-[4/5] bg-dark-card rounded-2xl border border-dashed border-dark-border flex flex-col items-center justify-center gap-2 active:scale-95 transition-all text-dark-muted hover:text-dark-text hover:border-zinc-500"
           >
-            <Plus size={24} />
-            <span className="text-[8px] font-black uppercase tracking-[0.1em] mt-2">More</span>
+            <div className="w-8 h-8 rounded-full bg-dark-bg border border-dark-border flex items-center justify-center">
+                <Plus size={14} />
+            </div>
+            <span className="text-[8px] font-black uppercase tracking-widest">Manual</span>
           </button>
         </div>
       </section>
 
-      {/* Enhanced History Modal */}
+      {/* Enhanced History Modal with Full Detail View */}
       {historyDay && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/98 backdrop-blur-2xl animate-fade-in">
-          <div className="w-full max-w-sm relative bg-zinc-950 border border-zinc-800 rounded-[48px] p-6 shadow-2xl ring-1 ring-white/10 overflow-hidden max-h-[90vh] overflow-y-auto scrollbar-hide">
-             {/* Close Button */}
-             <button onClick={() => setHistoryDay(null)} className="absolute top-6 right-6 text-dark-muted hover:text-white transition-colors p-2 z-20"><X size={24}/></button>
-
-             {/* Header: Rating & Date */}
-             <div className="flex flex-col items-center text-center mb-6 relative z-10 pt-4">
-                <div className={`w-20 h-20 rounded-[30px] flex items-center justify-center text-3xl font-black mb-4 shadow-2xl border-t border-white/20 ${getRatingStyle(historyEntry?.rating)}`}>
-                    {historyEntry?.rating || '-'}
-                </div>
-                <h2 className="text-lg font-black text-white uppercase tracking-tight">
-                    {new Date(historyDay).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
-                </h2>
-                <p className="text-[10px] text-dark-muted font-bold uppercase tracking-widest opacity-60">
-                    {new Date(historyDay).getFullYear()} Archive
-                </p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fade-in">
+          <div className="w-full max-w-md relative bg-dark-bg border border-dark-border rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+             {/* Header */}
+             <div className="flex items-center justify-between p-6 border-b border-dark-border bg-dark-card/50 backdrop-blur-md z-20">
+                 <div>
+                    <h2 className="text-xl font-black text-dark-text uppercase tracking-tight">
+                        {new Date(historyDay).toLocaleDateString(undefined, { day: 'numeric', month: 'long' })}
+                    </h2>
+                    <p className="text-[10px] text-dark-muted font-bold uppercase tracking-widest opacity-60">
+                        {new Date(historyDay).getFullYear()} Archive
+                    </p>
+                 </div>
+                 <button onClick={() => setHistoryDay(null)} className="w-10 h-10 rounded-full bg-dark-card flex items-center justify-center text-dark-muted hover:text-dark-text transition-colors">
+                    <X size={20}/>
+                 </button>
             </div>
 
-            <div className="space-y-3 relative z-10">
-                {/* Vitals Grid */}
-                <div className="grid grid-cols-3 gap-3">
-                    {/* Mood */}
-                    <Card className="bg-zinc-900/50 border-zinc-800 p-3 flex flex-col items-center justify-center gap-1">
-                        <span className="text-2xl">{MOODS.find(m => m.value === historyEntry?.mood)?.label || '😶'}</span>
-                        <span className="text-[7px] font-black uppercase text-dark-muted">Mood</span>
-                    </Card>
-                    
-                    {/* Energy */}
-                    <Card className="bg-zinc-900/50 border-zinc-800 p-3 flex flex-col items-center justify-center gap-1">
-                         <div className="flex gap-0.5 items-end h-6">
-                            {[1,2,3,4,5].map(l => (
-                                <div key={l} className={`w-1 rounded-sm ${l <= (historyEntry?.energy || 0) ? 'bg-gold-500' : 'bg-zinc-800'}`} style={{ height: `${l*20}%`}}></div>
-                            ))}
-                         </div>
-                        <span className="text-[7px] font-black uppercase text-dark-muted">Energy</span>
-                    </Card>
-
-                    {/* Spend */}
-                     <Card className="bg-zinc-900/50 border-zinc-800 p-3 flex flex-col items-center justify-center gap-1">
-                        <span className="text-sm font-black text-white">₹{getDayFinance(historyDay).spend}</span>
-                        <span className="text-[7px] font-black uppercase text-dark-muted">Spent</span>
-                    </Card>
+            <div className="overflow-y-auto p-6 space-y-8 scrollbar-hide">
+                {/* 1. Score & Vitals */}
+                <div className="flex items-center gap-6">
+                     <div 
+                        className="w-24 h-24 rounded-[30px] shrink-0 flex items-center justify-center text-4xl font-black shadow-2xl border-t border-white/20 transition-all"
+                        style={{ backgroundColor: historyColor, textShadow: '0 2px 10px rgba(0,0,0,0.3)', color: historyScore > 6 ? '#000' : '#fff' }}
+                     >
+                        {historyScore > 0 ? historyScore : '-'}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 flex-1">
+                        <div className="bg-dark-card p-3 rounded-2xl border border-dark-border">
+                             <span className="text-[9px] font-black uppercase text-dark-muted block mb-1">Energy</span>
+                             <div className="flex gap-0.5 items-end h-4">
+                                {[1,2,3,4,5].map(l => (
+                                    <div key={l} className={`w-1 rounded-sm ${l <= (historyEntry?.energy || 0) ? 'bg-gold-500' : 'bg-dark-border'}`} style={{ height: `${l*20}%`}}></div>
+                                ))}
+                             </div>
+                        </div>
+                        <div className="bg-dark-card p-3 rounded-2xl border border-dark-border">
+                             <span className="text-[9px] font-black uppercase text-dark-muted block mb-1">Spent</span>
+                             <span className="text-lg font-black text-dark-text">₹{getDayFinanceLegacy(historyDay).spend}</span>
+                        </div>
+                        <div className="col-span-2 bg-dark-card p-3 rounded-2xl border border-dark-border flex items-center justify-between">
+                             <span className="text-[9px] font-black uppercase text-dark-muted">Mood</span>
+                             <span className="text-xl">{MOODS.find(m => m.value === historyEntry?.mood)?.label || '😶'}</span>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Primary Stats */}
-                <Card className="bg-zinc-900/50 border-zinc-800 p-4 flex items-center justify-between">
-                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500"><CheckCircle2 size={16}/></div>
-                        <div>
-                            <p className="text-[9px] text-dark-muted font-black uppercase tracking-widest">Objectives</p>
-                            <p className="text-xs font-bold text-white">{historyEntry?.todos?.filter(t => t.completed).length || 0} / {historyEntry?.todos?.length || 0} Completed</p>
+                {/* 2. Habits Matrix */}
+                {state.profile.habits && state.profile.habits.length > 0 && (
+                    <section>
+                         <h3 className="text-[10px] text-dark-muted font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <Flame size={12} className="text-gold-500"/> Habit Protocol
+                         </h3>
+                         <div className="grid grid-cols-2 gap-2">
+                            {state.profile.habits.map(habit => {
+                                const status = historyEntry?.habitStatus?.[habit.id];
+                                const isPositive = habit.type === 'positive';
+                                
+                                let colorClass = 'bg-dark-card border-dark-border text-zinc-500';
+                                let icon = null;
+
+                                if (isPositive) {
+                                    if (status) { colorClass = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'; icon = <CheckCircle2 size={14}/>; }
+                                    else { colorClass = 'bg-dark-card border-dark-border text-zinc-400 opacity-60'; icon = <X size={14}/>; }
+                                } else {
+                                    if (status) { colorClass = 'bg-red-500/10 border-red-500/30 text-red-500'; icon = <Activity size={14}/>; } // Indulged
+                                    else { colorClass = 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'; icon = <ShieldCheck size={14}/>; } // Resisted/Clean
+                                }
+
+                                return (
+                                    <div key={habit.id} className={`flex items-center justify-between p-3 rounded-xl border ${colorClass}`}>
+                                        <div className="flex items-center gap-2">
+                                            <span>{habit.icon}</span>
+                                            <span className="text-[10px] font-bold uppercase">{habit.title}</span>
+                                        </div>
+                                        {icon}
+                                    </div>
+                                )
+                            })}
+                         </div>
+                    </section>
+                )}
+
+                {/* 3. Journal Core */}
+                <section className="space-y-3">
+                    <h3 className="text-[10px] text-dark-muted font-black uppercase tracking-widest mb-1 flex items-center gap-2">
+                        <BookOpen size={12} className="text-gold-500"/> Journal Entries
+                    </h3>
+
+                    {historyEntry?.intention && (
+                        <div className="p-4 rounded-2xl bg-dark-card border border-dark-border">
+                            <p className="text-[8px] text-blue-400 font-black uppercase tracking-widest mb-1.5">Focus</p>
+                            <p className="text-sm font-medium text-dark-text">"{historyEntry.intention}"</p>
                         </div>
-                     </div>
-                </Card>
+                    )}
 
-                {/* Journal Data */}
-                {historyEntry?.intention && (
-                    <div className="p-4 rounded-2xl border border-dashed border-zinc-800">
-                        <p className="text-[8px] text-blue-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1"><Zap size={10}/> Prime Focus</p>
-                        <p className="text-sm font-medium text-zinc-300">"{historyEntry.intention}"</p>
-                    </div>
-                )}
+                    {historyEntry?.memory && (
+                        <div className="p-4 rounded-2xl bg-dark-card border border-dark-border">
+                            <p className="text-[8px] text-gold-500 font-black uppercase tracking-widest mb-1.5">The Win</p>
+                            <p className="text-sm font-medium text-dark-text">"{historyEntry.memory}"</p>
+                        </div>
+                    )}
+                    
+                    {historyEntry?.promptAnswer && (
+                        <div className="p-4 rounded-2xl bg-dark-card border border-dark-border">
+                             <p className="text-[8px] text-zinc-500 font-black uppercase tracking-widest mb-2 italic">
+                                "{getPromptForDate(historyDay)}"
+                             </p>
+                             <p className="text-sm text-dark-text leading-relaxed whitespace-pre-wrap">
+                                {historyEntry.promptAnswer}
+                             </p>
+                        </div>
+                    )}
+                </section>
 
-                {historyEntry?.memory && (
-                    <div className="p-4 rounded-2xl border border-dashed border-zinc-800">
-                        <p className="text-[8px] text-gold-500 font-black uppercase tracking-widest mb-1 flex items-center gap-1"><Target size={10}/> The Win</p>
-                        <p className="text-sm font-medium text-zinc-300">{historyEntry.memory}</p>
-                    </div>
-                )}
-                
-                 {historyEntry?.promptAnswer && (
-                    <div className="p-4 rounded-2xl bg-zinc-900/30 border border-zinc-800">
-                        <p className="text-[8px] text-dark-muted font-black uppercase tracking-widest mb-2">Journal Log</p>
-                        <p className="text-xs text-zinc-400 italic leading-relaxed line-clamp-4">"{historyEntry.promptAnswer}"</p>
-                    </div>
-                )}
+                {/* 4. Mission Log (Todos) */}
+                 {historyEntry?.todos && historyEntry.todos.length > 0 && (
+                     <section>
+                         <h3 className="text-[10px] text-dark-muted font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <Target size={12} className="text-gold-500"/> Mission Log
+                         </h3>
+                         <div className="space-y-2">
+                            {historyEntry.todos.map(todo => (
+                                <div key={todo.id} className="flex items-center gap-3 p-3 bg-dark-card/50 rounded-xl border border-dark-border/50">
+                                    <div className={`w-4 h-4 rounded border flex items-center justify-center ${todo.completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-dark-border'}`}>
+                                        {todo.completed && <Check size={10} strokeWidth={4} />}
+                                    </div>
+                                    <span className={`text-xs ${todo.completed ? 'text-zinc-500 line-through' : 'text-dark-text'}`}>{todo.text}</span>
+                                </div>
+                            ))}
+                         </div>
+                     </section>
+                 )}
 
-                <Button variant="secondary" className="w-full h-12 mt-2 font-black uppercase tracking-[0.2em] rounded-[20px]" onClick={() => setHistoryDay(null)}>Close</Button>
+                {/* 5. Financial Ledger */}
+                {getDayTransactions(historyDay).length > 0 && (
+                    <section>
+                        <h3 className="text-[10px] text-dark-muted font-black uppercase tracking-widest mb-3 flex items-center gap-2">
+                            <Wallet size={12} className="text-gold-500"/> Daily Ledger
+                         </h3>
+                         <div className="space-y-2">
+                            {getDayTransactions(historyDay).map(txn => (
+                                <div key={txn.id} className="flex justify-between items-center p-3 bg-dark-card/50 rounded-xl border border-dark-border/50">
+                                     <div className="flex items-center gap-3">
+                                        <span className="text-base">{state.profile.customCategories?.find(c => c.label === txn.category)?.icon || '💸'}</span>
+                                        <div>
+                                            <p className="text-[10px] font-black uppercase text-dark-text">{txn.category}</p>
+                                            {txn.note && <p className="text-[9px] text-dark-muted">{txn.note}</p>}
+                                        </div>
+                                     </div>
+                                     <span className={`text-xs font-bold ${txn.type === 'EXPENSE' ? 'text-dark-text' : 'text-emerald-500'}`}>
+                                        {txn.type === 'EXPENSE' ? '-' : '+'}₹{txn.amount}
+                                     </span>
+                                </div>
+                            ))}
+                         </div>
+                    </section>
+                )}
             </div>
           </div>
         </div>

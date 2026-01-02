@@ -1,4 +1,5 @@
-import { QuickAddPreset } from './types';
+
+import { QuickAddPreset, HabitDef } from './types';
 import { Cigarette, Cannabis, Beer, Coffee, Zap } from 'lucide-react';
 
 export const INTENT_OPTIONS = [
@@ -14,6 +15,13 @@ export const DEFAULT_QUICK_ADDS: QuickAddPreset[] = [
   { id: 'qa2', label: 'Food', price: 80.00, unit: 'unit', icon: 'burger' },
   { id: 'qa3', label: 'Coffee', price: 20.00, unit: 'cup', icon: 'coffee' },
   { id: 'qa4', label: 'Travel', price: 50.00, unit: 'unit', icon: 'car' }
+];
+
+export const DEFAULT_HABITS: HabitDef[] = [
+  { id: 'h1', title: 'Smoking', type: 'negative', icon: '🚬' },
+  { id: 'h2', title: 'Alcohol', type: 'negative', icon: '🍺' },
+  { id: 'h3', title: 'Gym', type: 'positive', icon: '💪' },
+  { id: 'h4', title: 'Sleep < 12AM', type: 'positive', icon: '😴' },
 ];
 
 export const ADDICTION_TRIGGERS = [

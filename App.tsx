@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Home, BookOpen, Target, Settings, Check, Wallet } from 'lucide-react';
+import { Home, BookOpen, Target, Settings, Check, Wallet, ListTodo } from 'lucide-react';
 import { Container } from './components/UI';
 import { AppState, UserProfile, DailyEntry, Transaction, Goal, Screen, AddictionLog } from './types';
-import { generateId, formatDate } from './constants';
+import { generateId, formatDate, DEFAULT_HABITS } from './constants';
 
 // Screens
 import Onboarding from './screens/Onboarding';
@@ -11,6 +11,7 @@ import Dashboard from './screens/Dashboard';
 import Journal from './screens/Journal';
 import Goals from './screens/Goals';
 import Finance from './screens/Finance';
+import Habits from './screens/Habits';
 import UserSettings from './screens/Settings';
 
 const INITIAL_STATE: AppState = {
@@ -19,11 +20,11 @@ const INITIAL_STATE: AppState = {
     startDate: new Date().toISOString(),
     intents: [],
     reminderMorning: '07:00',
-    reminderNight: '22:00',
     isOnboarded: false,
     dailyBudget: 500,
     habitLimits: { 'Cigarettes': 2, 'Junk Food': 1 },
-    habitOverrides: {}
+    habitOverrides: {},
+    habits: DEFAULT_HABITS
   },
   entries: {},
   transactions: [],
@@ -37,7 +38,9 @@ export default function App() {
     const saved = localStorage.getItem('jagruk_journal_data');
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Ensure current date is always updated to actual today
+      if (!parsed.profile.habits) {
+          parsed.profile.habits = DEFAULT_HABITS;
+      }
       return { ...parsed, currentDate: formatDate(new Date()) };
     }
     return INITIAL_STATE;
@@ -45,13 +48,32 @@ export default function App() {
 
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
   const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
+  
+  // Theme State
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('jagruk_theme') as 'light' | 'dark') || 'dark';
+  });
+
+  // Theme Effect
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('jagruk_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   // Persistence Engine
   useEffect(() => {
     localStorage.setItem('jagruk_journal_data', JSON.stringify(state));
   }, [state]);
 
-  // Onboarding Protection
   useEffect(() => {
     if (!state.profile.isOnboarded) {
       setCurrentScreen('onboarding');
@@ -69,7 +91,7 @@ export default function App() {
         date,
         todos: [],
         isLocked: false,
-        rating: 5
+        rating: 0
       };
       return {
         ...prev,
@@ -108,11 +130,11 @@ export default function App() {
 
   const handleImportData = (newData: AppState) => {
     try {
-      // Basic validation: Check for essential keys
       if (newData.profile && newData.entries && Array.isArray(newData.transactions)) {
+        if (!newData.profile.habits) newData.profile.habits = DEFAULT_HABITS;
         setState({
           ...newData,
-          currentDate: formatDate(new Date()) // Always use real-time today
+          currentDate: formatDate(new Date()) 
         });
         showToast("Backup Restored Successfully");
       } else {
@@ -136,21 +158,42 @@ export default function App() {
 
     switch (currentScreen) {
       case 'home':
-        return <Dashboard state={state} onNavigate={setCurrentScreen} onUpdateEntry={updateEntry} onAddTransaction={addTransaction} />;
+        return <Dashboard 
+          state={state} 
+          onNavigate={setCurrentScreen} 
+          onUpdateEntry={updateEntry} 
+          onAddTransaction={addTransaction}
+          currentTheme={theme}
+          onToggleTheme={toggleTheme}
+        />;
       case 'journal':
         return <Journal state={state} onUpdateEntry={updateEntry} onNavigate={setCurrentScreen} />;
       case 'finance':
         return <Finance state={state} onAddTransaction={addTransaction} onAddAddictionLog={addAddictionLog} onUpdateProfile={(data) => setState(prev => ({ ...prev, profile: { ...prev.profile, ...data } }))} />;
       case 'goals':
         return <Goals state={state} onAddGoal={(g) => setState(prev => ({ ...prev, goals: [...prev.goals, g] }))} onToggleGoal={(id) => setState(prev => ({ ...prev, goals: prev.goals.map(g => g.id === id ? { ...g, completed: !g.completed } : g) }))} onUpdateGoal={(id, data) => setState(prev => ({ ...prev, goals: prev.goals.map(g => g.id === id ? { ...g, ...data } : g) }))} />;
+      case 'habits':
+        return <Habits 
+            state={state} 
+            onUpdateEntry={updateEntry} 
+            onUpdateProfile={(data) => setState(prev => ({ ...prev, profile: { ...prev.profile, ...data } }))}
+        />;
       case 'settings':
         return <UserSettings 
           state={state} 
           onImport={handleImportData}
+          onNavigate={setCurrentScreen}
           onReset={() => { if(confirm('Erase all data? This will factory reset the system.')) { localStorage.clear(); window.location.reload(); } }} 
         />;
       default:
-        return <Dashboard state={state} onNavigate={setCurrentScreen} onUpdateEntry={updateEntry} onAddTransaction={addTransaction} />;
+        return <Dashboard 
+          state={state} 
+          onNavigate={setCurrentScreen} 
+          onUpdateEntry={updateEntry} 
+          onAddTransaction={addTransaction}
+          currentTheme={theme}
+          onToggleTheme={toggleTheme}
+        />;
     }
   };
 
@@ -170,12 +213,12 @@ export default function App() {
 
       {state.profile.isOnboarded && (
         <nav className="fixed bottom-0 left-0 right-0 bg-dark-bg/95 backdrop-blur-xl border-t border-dark-border p-2 z-50 max-w-md mx-auto">
-          <div className="flex justify-around items-center">
-            <NavBtn active={currentScreen === 'home'} icon={<Home size={22} />} label="Home" onClick={() => setCurrentScreen('home')} />
-            <NavBtn active={currentScreen === 'journal'} icon={<BookOpen size={22} />} label="Journal" onClick={() => setCurrentScreen('journal')} />
-            <NavBtn active={currentScreen === 'finance'} icon={<Wallet size={22} />} label="Finance" onClick={() => setCurrentScreen('finance')} />
-            <NavBtn active={currentScreen === 'goals'} icon={<Target size={22} />} label="Vision" onClick={() => setCurrentScreen('goals')} />
-            <NavBtn active={currentScreen === 'settings'} icon={<Settings size={22} />} label="System" onClick={() => setCurrentScreen('settings')} />
+          <div className="flex justify-between items-center px-1">
+            <NavBtn active={currentScreen === 'home'} icon={<Home size={20} />} label="Home" onClick={() => setCurrentScreen('home')} />
+            <NavBtn active={currentScreen === 'habits'} icon={<ListTodo size={20} />} label="Habits" onClick={() => setCurrentScreen('habits')} />
+            <NavBtn active={currentScreen === 'journal'} icon={<BookOpen size={20} />} label="Log" onClick={() => setCurrentScreen('journal')} />
+            <NavBtn active={currentScreen === 'finance'} icon={<Wallet size={20} />} label="Finance" onClick={() => setCurrentScreen('finance')} />
+            <NavBtn active={currentScreen === 'goals'} icon={<Target size={20} />} label="Vision" onClick={() => setCurrentScreen('goals')} />
           </div>
         </nav>
       )}

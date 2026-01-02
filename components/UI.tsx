@@ -1,14 +1,15 @@
+
 import React from 'react';
 
 // --- Layout & Cards ---
-export const Card: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-  <div className={`bg-dark-card border border-dark-border rounded-xl p-4 shadow-sm ${className}`}>
+export const Card: React.FC<{ children: React.ReactNode; className?: string; style?: React.CSSProperties; onClick?: () => void }> = ({ children, className = '', ...props }) => (
+  <div className={`bg-dark-card border border-dark-border rounded-xl p-4 shadow-sm ${className}`} {...props}>
     {children}
   </div>
 );
 
 export const Container: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="max-w-md mx-auto min-h-screen bg-dark-bg text-dark-text flex flex-col pb-24 relative overflow-hidden">
+  <div className="max-w-md mx-auto min-h-screen bg-dark-bg text-dark-text flex flex-col pb-24 relative overflow-hidden transition-colors duration-300">
     {children}
   </div>
 );
@@ -29,8 +30,8 @@ export const Button: React.FC<ButtonProps> = ({
   const baseStyle = "font-medium rounded-lg transition-all active:scale-95 flex items-center justify-center gap-2";
   
   const variants = {
-    primary: "bg-gold-500 text-dark-bg hover:bg-gold-400 shadow-lg shadow-gold-500/20",
-    secondary: "bg-dark-border text-dark-text hover:bg-zinc-700 border border-zinc-700",
+    primary: "bg-gold-500 text-white dark:text-black hover:bg-gold-400 shadow-lg shadow-gold-500/20",
+    secondary: "bg-dark-card text-dark-text hover:bg-dark-border border border-dark-border",
     ghost: "bg-transparent text-gold-500 hover:bg-gold-500/10",
     danger: "bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
   };

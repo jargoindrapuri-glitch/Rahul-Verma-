@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { AppState, Goal } from '../types';
 import { Card, Button, Input, ProgressBar } from '../components/UI';
@@ -62,7 +63,7 @@ export default function Goals({ state, onAddGoal, onToggleGoal, onUpdateGoal }: 
     <div className="space-y-6 animate-fade-in pb-24">
       <header className="flex justify-between items-end pt-2">
         <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Vision</h1>
+          <h1 className="text-3xl font-black text-dark-text tracking-tight">Vision</h1>
           <p className="text-[10px] text-dark-muted font-black uppercase tracking-[0.2em] mt-1">Goal Architecture</p>
         </div>
         <Button size="sm" className="rounded-xl h-10 px-4" onClick={() => setShowForm(!showForm)}>
@@ -71,7 +72,7 @@ export default function Goals({ state, onAddGoal, onToggleGoal, onUpdateGoal }: 
       </header>
 
       {/* Progress Dashboard */}
-      <Card className="bg-zinc-900/50 border-dark-border p-5">
+      <Card className="bg-dark-card border-dark-border p-5">
         <div className="flex items-center gap-6">
             <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
@@ -84,14 +85,14 @@ export default function Goals({ state, onAddGoal, onToggleGoal, onUpdateGoal }: 
                     />
                 </svg>
                 <div className="absolute flex flex-col items-center">
-                    <span className="text-lg font-black text-white">{overallProgress}%</span>
+                    <span className="text-lg font-black text-dark-text">{overallProgress}%</span>
                     <span className="text-[7px] text-dark-muted font-black uppercase tracking-tighter">Total</span>
                 </div>
             </div>
             <div className="flex-1 space-y-3">
                 <div className="flex justify-between items-center">
                     <span className="text-[10px] text-dark-muted font-black uppercase tracking-widest">Active Units</span>
-                    <span className="text-xs font-black text-white">{totalGoals - completedGoals}</span>
+                    <span className="text-xs font-black text-dark-text">{totalGoals - completedGoals}</span>
                 </div>
                 <div className="flex justify-between items-center">
                     <span className="text-[10px] text-emerald-500 font-black uppercase tracking-widest">Mastered</span>
@@ -136,11 +137,11 @@ export default function Goals({ state, onAddGoal, onToggleGoal, onUpdateGoal }: 
       </div>
 
       {showForm && (
-        <Card className="animate-slide-up border-gold-500/30 bg-zinc-900">
+        <Card className="animate-slide-up border-gold-500/30 bg-dark-card">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-[10px] text-gold-500 font-black uppercase tracking-widest">Initialize New Objective</h3>
-                <button onClick={() => setShowForm(false)} className="text-dark-muted hover:text-white transition-colors"><Plus size={20} className="rotate-45" /></button>
+                <button onClick={() => setShowForm(false)} className="text-dark-muted hover:text-dark-text transition-colors"><Plus size={20} className="rotate-45" /></button>
             </div>
             <Input 
               label="Goal Title" 
@@ -169,7 +170,7 @@ export default function Goals({ state, onAddGoal, onToggleGoal, onUpdateGoal }: 
             className={`p-5 rounded-[24px] border transition-all duration-300 ${
               goal.completed 
                 ? 'bg-emerald-500/5 border-emerald-500/20' 
-                : 'bg-dark-card border-dark-border shadow-lg'
+                : 'bg-dark-card border-dark-border shadow-sm'
             }`}
           >
             <div className="flex items-start gap-4 mb-4">
@@ -182,7 +183,7 @@ export default function Goals({ state, onAddGoal, onToggleGoal, onUpdateGoal }: 
                 </button>
                 
                 <div className="flex-1 min-w-0">
-                    <h3 className={`font-black text-sm uppercase tracking-wider truncate ${goal.completed ? 'text-emerald-500 line-through' : 'text-white'}`}>
+                    <h3 className={`font-black text-sm uppercase tracking-wider truncate ${goal.completed ? 'text-emerald-500 line-through' : 'text-dark-text'}`}>
                         {goal.title}
                     </h3>
                     {goal.reason && <p className="text-[10px] text-dark-muted font-bold mt-1 line-clamp-1 italic">"{goal.reason}"</p>}
@@ -196,13 +197,13 @@ export default function Goals({ state, onAddGoal, onToggleGoal, onUpdateGoal }: 
                         <TrendingUp size={10} className={activeTab === 'career' ? 'text-gold-500' : 'text-blue-400'} />
                         <span className="text-[9px] text-dark-muted font-black uppercase tracking-widest">Momentum</span>
                     </div>
-                    <span className="text-sm font-black text-white">{goal.progress || 0}%</span>
+                    <span className="text-sm font-black text-dark-text">{goal.progress || 0}%</span>
                 </div>
                 
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={(e) => adjustProgress(e, goal, -10)}
-                        className="w-10 h-10 rounded-xl bg-dark-bg border border-dark-border flex items-center justify-center text-dark-muted hover:text-white transition-all active:scale-90"
+                        className="w-10 h-10 rounded-xl bg-dark-bg border border-dark-border flex items-center justify-center text-dark-muted hover:text-dark-text transition-all active:scale-90"
                     >
                         <Minus size={14} />
                     </button>
@@ -227,8 +228,8 @@ export default function Goals({ state, onAddGoal, onToggleGoal, onUpdateGoal }: 
 
         {filteredGoals.length === 0 && !showForm && (
           <div className="flex flex-col items-center justify-center py-20 opacity-20 text-center">
-            <Target className="w-16 h-16 mb-4" />
-            <p className="font-black uppercase tracking-widest text-xs">No active trajectories</p>
+            <Target className="w-16 h-16 mb-4 text-dark-text" />
+            <p className="font-black uppercase tracking-widest text-xs text-dark-text">No active trajectories</p>
           </div>
         )}
       </div>

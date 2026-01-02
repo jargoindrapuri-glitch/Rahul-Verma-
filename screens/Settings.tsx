@@ -1,8 +1,8 @@
 
 import React, { useRef } from 'react';
-import { AppState } from '../types';
+import { AppState, Screen } from '../types';
 import { Card, Button } from '../components/UI';
-import { Shield, FileText, Download, HeartPulse, Trash2, AlertTriangle, Database, Upload, FileSpreadsheet } from 'lucide-react';
+import { Shield, FileText, HeartPulse, Trash2, AlertTriangle, Database, Upload, FileSpreadsheet, ArrowLeft, ChevronRight } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate } from '../constants';
@@ -11,9 +11,30 @@ interface Props {
   state: AppState;
   onReset: () => void;
   onImport: (data: AppState) => void;
+  onNavigate: (screen: Screen) => void;
 }
 
-export default function Settings({ state, onReset, onImport }: Props) {
+// 1-10 Color Scale (Red -> Yellow -> Green)
+const SCORE_COLORS = {
+  1: '#7f1d1d', // Dark Red
+  2: '#dc2626', // Red
+  3: '#f87171', // Light Red
+  4: '#c2410c', // Dark Orange/Yellow
+  5: '#d97706', // Dark Yellow
+  6: '#eab308', // Yellow
+  7: '#facc15', // Light Yellow
+  8: '#84cc16', // Light Green
+  9: '#22c55e', // Green
+  10: '#10b981' // Bright Green/Emerald
+};
+
+const getScoreColor = (score: number) => {
+  if (!score || score === 0) return 'var(--bg-card)';
+  const clamped = Math.max(1, Math.min(10, Math.round(score)));
+  return (SCORE_COLORS as any)[clamped];
+};
+
+export default function Settings({ state, onReset, onImport, onNavigate }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // --- Life Pulse Data Calculation ---
@@ -27,12 +48,7 @@ export default function Settings({ state, onReset, onImport }: Props) {
     return days.map(date => {
       const entry = state.entries[date];
       const score = entry?.rating || 0;
-      let color = 'bg-zinc-800'; 
-      
-      if (score >= 8) color = 'bg-emerald-500';
-      else if (score >= 5) color = 'bg-gold-500';
-      else if (score > 0) color = 'bg-red-500';
-
+      const color = score > 0 ? getScoreColor(score) : 'var(--border-color)';
       return { date, score, color };
     });
   }, [state.entries]);
@@ -43,7 +59,7 @@ export default function Settings({ state, onReset, onImport }: Props) {
     return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
   }, [state.entries]);
 
-  // --- Export: CSV (Spreadsheet) ---
+  // --- Export Functions ---
   const handleExportCSV = () => {
     const headers = ["Date", "Category", "Type", "Amount", "Note"];
     const rows = state.transactions.map(t => [
@@ -67,7 +83,6 @@ export default function Settings({ state, onReset, onImport }: Props) {
     link.remove();
   };
 
-  // --- Export: JSON Backup ---
   const handleExportJSON = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
     const downloadAnchorNode = document.createElement('a');
@@ -78,7 +93,6 @@ export default function Settings({ state, onReset, onImport }: Props) {
     downloadAnchorNode.remove();
   };
 
-  // --- Import: JSON Restore ---
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
@@ -99,11 +113,9 @@ export default function Settings({ state, onReset, onImport }: Props) {
       }
     };
     reader.readAsText(file);
-    // Reset input
     e.target.value = '';
   };
 
-  // --- Export: PDF Report ---
   const handleExportPDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
@@ -150,70 +162,105 @@ export default function Settings({ state, onReset, onImport }: Props) {
     doc.save(`Jagruk_Report_${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
+  // Helper Component for Grid Buttons
+  const ActionCard = ({ icon, label, sub, onClick, highlight = false }: { icon: React.ReactNode, label: string, sub: string, onClick: () => void, highlight?: boolean }) => (
+    <button 
+        onClick={onClick}
+        className={`flex flex-col items-start justify-between p-4 rounded-xl border transition-all duration-300 group active:scale-95 text-left h-28 ${highlight ? 'bg-gold-500/10 border-gold-500/40 hover:bg-gold-500/20' : 'bg-dark-card border-dark-border hover:border-zinc-500'}`}
+    >
+        <div className={`${highlight ? 'text-gold-500' : 'text-dark-muted group-hover:text-dark-text'}`}>
+            {icon}
+        </div>
+        <div>
+            <span className={`block text-xs font-black uppercase tracking-wider ${highlight ? 'text-dark-text' : 'text-dark-text'}`}>{label}</span>
+            <span className="block text-[9px] font-bold text-dark-muted mt-0.5">{sub}</span>
+        </div>
+    </button>
+  );
+
   return (
-    <div className="space-y-6 animate-fade-in pb-24">
-      <header className="pb-4 border-b border-dark-border">
-        <h1 className="text-2xl font-black text-white">System Configuration</h1>
-        <p className="text-dark-muted text-xs font-bold uppercase tracking-widest">OS Settings & Data Vault</p>
+    <div className="space-y-6 animate-fade-in pb-28">
+      {/* Header */}
+      <header className="flex items-center gap-4 pt-4 pb-2 border-b border-dark-border px-1">
+        <button onClick={() => onNavigate('home')} className="p-2 -ml-2 rounded-full text-dark-muted hover:text-dark-text transition-colors">
+            <ArrowLeft size={24} />
+        </button>
+        <div>
+            <h1 className="text-2xl font-black text-dark-text tracking-tight">System Config</h1>
+            <p className="text-dark-muted text-[10px] font-black uppercase tracking-[0.2em]">OS Settings & Data Vault</p>
+        </div>
       </header>
 
       {/* LIFE PULSE VISUALIZATION */}
       <section>
-        <div className="flex items-center gap-2 mb-3">
-            <HeartPulse size={16} className="text-red-500" />
-            <h2 className="text-xs font-black text-dark-muted uppercase tracking-widest">Life Pulse Index (30D)</h2>
+        <div className="flex items-center gap-2 mb-3 px-1">
+            <HeartPulse size={14} className="text-gold-500" />
+            <h2 className="text-[10px] font-black text-dark-muted uppercase tracking-[0.2em]">Life Pulse Index (30D)</h2>
         </div>
-        <Card className="bg-zinc-900 border-dark-border p-5">
-            <div className="flex justify-between items-end mb-4">
+        <Card className="bg-dark-card border-dark-border p-6 shadow-sm relative overflow-hidden">
+            <div className="flex justify-between items-end mb-6 relative z-10">
                 <div>
-                    <span className="text-[10px] text-dark-muted font-black uppercase tracking-widest block">Global Discipline</span>
-                    <span className="text-3xl font-black text-white">{averageScore}</span>
-                    <span className="text-sm text-dark-muted font-bold">/10</span>
+                    <span className="text-[9px] text-dark-muted font-black uppercase tracking-widest block mb-1">Global Discipline</span>
+                    <span className="text-4xl font-black text-dark-text tracking-tighter">{averageScore}<span className="text-lg text-dark-muted">/10</span></span>
                 </div>
-                <div className="text-right flex flex-col items-end gap-1">
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500"></div><span className="text-[9px] text-dark-muted font-bold">Nominal</span></div>
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-gold-500"></div><span className="text-[9px] text-dark-muted font-bold">Stable</span></div>
-                    <div className="flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div><span className="text-[9px] text-dark-muted font-bold">Critical</span></div>
+                <div className="text-right space-y-1">
+                    <div className="flex items-center justify-end gap-2"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div><span className="text-[9px] text-dark-muted font-bold uppercase">Peak</span></div>
+                    <div className="flex items-center justify-end gap-2"><div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div><span className="text-[9px] text-dark-muted font-bold uppercase">Nominal</span></div>
+                    <div className="flex items-center justify-end gap-2"><div className="w-1.5 h-1.5 rounded-full bg-red-600"></div><span className="text-[9px] text-dark-muted font-bold uppercase">Critical</span></div>
                 </div>
             </div>
-            <div className="flex items-end justify-between h-20 gap-1 mb-2">
+            
+            <div className="flex items-end justify-between h-24 gap-1 relative z-10">
                 {pulseData.map((d, i) => (
                     <div key={i} className="flex-1 flex flex-col items-center group">
-                        <div className={`w-full rounded-sm transition-all duration-300 ${d.color} opacity-70 group-hover:opacity-100`} style={{ height: `${d.score ? (d.score * 10) : 5}%` }}></div>
+                        <div 
+                            className="w-full rounded-sm transition-all duration-300 opacity-80 group-hover:opacity-100 hover:scale-y-110 origin-bottom" 
+                            style={{ height: `${d.score ? (d.score * 10) : 5}%`, backgroundColor: d.color }}
+                        ></div>
                     </div>
                 ))}
             </div>
-            <div className="flex justify-between text-[8px] text-zinc-700 font-black uppercase">
-                <span>-30 Days</span>
-                <span>Active Today</span>
-            </div>
+            {/* Background Glow */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-dark-bg/10 to-transparent pointer-events-none"></div>
         </Card>
       </section>
 
       {/* DATA VAULT */}
-      <section className="space-y-4">
-          <div className="flex items-center gap-2 mb-1">
-              <Shield size={16} className="text-gold-500" />
-              <h2 className="text-xs font-black text-dark-muted uppercase tracking-widest">System Data Vault</h2>
+      <section>
+          <div className="flex items-center gap-2 mb-3 px-1">
+              <Shield size={14} className="text-blue-500" />
+              <h2 className="text-[10px] font-black text-dark-muted uppercase tracking-[0.2em]">System Data Vault</h2>
           </div>
           
-          <Card className="bg-zinc-900 border-dark-border p-5 space-y-4">
+          <Card className="bg-transparent border-none p-0 shadow-none space-y-6">
+              {/* Grid Actions */}
               <div className="grid grid-cols-2 gap-3">
-                   <Button onClick={handleExportPDF} variant="secondary" className="h-12 text-[10px] font-black uppercase">
-                      <FileText size={16} /> Export PDF
-                   </Button>
-                   <Button onClick={handleExportCSV} variant="secondary" className="h-12 text-[10px] font-black uppercase">
-                      <FileSpreadsheet size={16} /> Export CSV
-                   </Button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                   <Button onClick={handleExportJSON} variant="secondary" className="h-12 text-[10px] font-black uppercase border-gold-500/20">
-                      <Database size={16} /> Backup .JSON
-                   </Button>
-                   <Button onClick={handleImportClick} variant="secondary" className="h-12 text-[10px] font-black uppercase text-gold-500 bg-gold-500/5">
-                      <Upload size={16} /> Restore
-                   </Button>
+                   <ActionCard 
+                        icon={<FileText size={20}/>} 
+                        label="Report PDF" 
+                        sub="Printable View" 
+                        onClick={handleExportPDF} 
+                   />
+                   <ActionCard 
+                        icon={<FileSpreadsheet size={20}/>} 
+                        label="Export CSV" 
+                        sub="Excel Format" 
+                        onClick={handleExportCSV} 
+                   />
+                   <ActionCard 
+                        icon={<Database size={20}/>} 
+                        label="Backup" 
+                        sub="Save .JSON File" 
+                        onClick={handleExportJSON} 
+                        highlight
+                   />
+                   <ActionCard 
+                        icon={<Upload size={20}/>} 
+                        label="Restore" 
+                        sub="Load .JSON File" 
+                        onClick={handleImportClick} 
+                        highlight
+                   />
               </div>
 
               <input 
@@ -224,20 +271,29 @@ export default function Settings({ state, onReset, onImport }: Props) {
                 accept=".json"
               />
 
-              <div className="pt-4 border-t border-dark-border">
-                  <Button variant="danger" className="w-full h-12 text-[10px] font-black uppercase" onClick={onReset}>
-                      <Trash2 size={16} /> Wipe System Memory
-                  </Button>
-                  <p className="text-[9px] text-dark-muted text-center mt-3 uppercase font-bold tracking-widest">
-                      <AlertTriangle size={10} className="inline mr-1 text-red-500" />
-                      Critical Operation
-                  </p>
+              {/* Danger Zone */}
+              <div className="pt-6 border-t border-dark-border/50">
+                  <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-1">
+                      <button 
+                        onClick={onReset}
+                        className="w-full h-14 rounded-xl flex items-center justify-between px-6 hover:bg-red-500/10 transition-colors group"
+                      >
+                          <div className="flex items-center gap-3">
+                              <Trash2 size={18} className="text-red-500" />
+                              <div className="text-left">
+                                  <span className="block text-xs font-black text-red-500 uppercase tracking-wider">Wipe System Memory</span>
+                                  <span className="block text-[9px] text-red-500/60 font-bold">Factory Reset</span>
+                              </div>
+                          </div>
+                          <AlertTriangle size={16} className="text-red-500 opacity-50 group-hover:opacity-100" />
+                      </button>
+                  </div>
               </div>
           </Card>
       </section>
       
-      <div className="text-center pb-8 pt-4">
-          <p className="text-[9px] text-zinc-800 font-black uppercase tracking-[0.5em]">Jagruk OS v1.02 Build Alpha</p>
+      <div className="text-center pt-8 opacity-40">
+          <p className="text-[8px] text-dark-muted font-black uppercase tracking-[0.4em]">Jagruk OS v1.02 // Alpha</p>
       </div>
     </div>
   );

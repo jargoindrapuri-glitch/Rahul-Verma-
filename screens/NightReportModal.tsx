@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { NightReflection, Mood } from '../types';
 import { Card, Button, Input, TextArea } from '../components/UI';
@@ -26,13 +27,13 @@ export default function NightReportModal({ onClose, onSave }: Props) {
     if (!selectedMood) return alert("Please select a mood.");
     onSave({
       mood: selectedMood,
-      followedFocus: data.followedFocus || false,
+      followedFocus: !!data.followedFocus,
       win: data.win || '',
       regret: data.regret || '',
       gratitude: data.gratitude || '',
-      smokedToday: data.smokedToday,
-      impulseBuy: data.impulseBuy,
-      resistedCraving: data.resistedCraving,
+      smokedToday: !!data.smokedToday,
+      impulseBuy: !!data.impulseBuy,
+      resistedCraving: !!data.resistedCraving,
       regretSpendAmount: data.regretSpendAmount
     });
   };

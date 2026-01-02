@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Transaction, QuickAddPreset, AppState } from '../types';
 import { Card, Button, Input } from '../components/UI';
@@ -16,7 +17,17 @@ export default function QuickEntryModal({ preset, state, onClose, onSave }: Prop
   const [amount, setAmount] = useState<number>(defaultPrice);
   const [quantity, setQuantity] = useState<number>(1);
   const [note, setNote] = useState<string>('');
-  const [date, setDate] = useState<string>(formatDate(new Date()));
+  
+  // Use Local Date for Default
+  const getLocalDateStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  const [date, setDate] = useState<string>(getLocalDateStr());
 
   const handleSave = () => {
     // Construct ISO string for the selected date at the current local time or start of day

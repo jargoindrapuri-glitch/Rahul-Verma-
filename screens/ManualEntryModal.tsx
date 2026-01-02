@@ -1,8 +1,8 @@
+
 import React, { useState } from 'react';
 import { Transaction } from '../types';
 import { Card, Button, Input } from '../components/UI';
 import { X, Check, Calendar, Tag, IndianRupee } from 'lucide-react';
-import { formatDate } from '../constants';
 
 interface Props {
   onClose: () => void;
@@ -13,7 +13,17 @@ export default function ManualEntryModal({ onClose, onSave }: Props) {
   const [amount, setAmount] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
-  const [date, setDate] = useState<string>(formatDate(new Date()));
+  
+  // Use Local Date for Default
+  const getLocalDateStr = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [date, setDate] = useState<string>(getLocalDateStr());
   const [note, setNote] = useState<string>('');
 
   const handleSave = () => {
