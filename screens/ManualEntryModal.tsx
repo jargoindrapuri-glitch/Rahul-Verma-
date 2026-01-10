@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Transaction } from '../types';
 import { Card, Button, Input } from '../components/UI';
 import { X, Check, Calendar, Tag, IndianRupee } from 'lucide-react';
+import { formatDate } from '../constants';
 
 interface Props {
   onClose: () => void;
@@ -14,16 +15,10 @@ export default function ManualEntryModal({ onClose, onSave }: Props) {
   const [category, setCategory] = useState<string>('');
   const [type, setType] = useState<'EXPENSE' | 'INCOME'>('EXPENSE');
   
-  // Use Local Date for Default
-  const getLocalDateStr = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  // Use Local Date for Default synced via constants
+  const todayStr = formatDate(new Date());
 
-  const [date, setDate] = useState<string>(getLocalDateStr());
+  const [date, setDate] = useState<string>(todayStr);
   const [note, setNote] = useState<string>('');
 
   const handleSave = () => {
@@ -54,13 +49,13 @@ export default function ManualEntryModal({ onClose, onSave }: Props) {
             <div className="w-16 h-16 rounded-2xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center text-gold-500 mb-4">
                 <IndianRupee size={32} />
             </div>
-            <h2 className="text-xl font-black text-white uppercase tracking-[0.2em]">Manual Entry</h2>
+            <h2 className="text-xl font-black text-dark-text uppercase tracking-[0.2em]">Manual Entry</h2>
             <p className="text-[10px] text-dark-muted font-bold tracking-widest mt-1 uppercase">Define the transaction</p>
         </div>
 
         <div className="space-y-6">
           {/* Type Selector */}
-          <div className="flex bg-zinc-900 p-1 rounded-xl border border-dark-border">
+          <div className="flex bg-dark-card p-1 rounded-xl border border-dark-border">
               <button 
                 onClick={() => setType('EXPENSE')}
                 className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${type === 'EXPENSE' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-dark-muted'}`}
@@ -82,9 +77,10 @@ export default function ManualEntryModal({ onClose, onSave }: Props) {
             </label>
             <Input 
                 type="date" 
+                max={todayStr}
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="bg-zinc-900 border-dark-border font-bold"
+                className="bg-dark-card border-dark-border font-bold"
             />
           </div>
 
@@ -97,7 +93,7 @@ export default function ManualEntryModal({ onClose, onSave }: Props) {
                 placeholder="e.g., Grocery, Rent, Salary" 
                 value={category}
                 onChange={e => setCategory(e.target.value)}
-                className="bg-zinc-900 border-dark-border"
+                className="bg-dark-card border-dark-border"
             />
           </div>
 
@@ -109,7 +105,7 @@ export default function ManualEntryModal({ onClose, onSave }: Props) {
                 placeholder="0.00"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                className="text-center text-2xl font-black text-gold-500 bg-zinc-900"
+                className="text-center text-2xl font-black text-gold-500 bg-dark-card"
             />
           </div>
 
@@ -120,7 +116,7 @@ export default function ManualEntryModal({ onClose, onSave }: Props) {
                 placeholder="Add a note..." 
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                className="bg-zinc-900 border-dark-border text-xs"
+                className="bg-dark-card border-dark-border text-xs"
             />
           </div>
 

@@ -18,16 +18,10 @@ export default function QuickEntryModal({ preset, state, onClose, onSave }: Prop
   const [quantity, setQuantity] = useState<number>(1);
   const [note, setNote] = useState<string>('');
   
-  // Use Local Date for Default
-  const getLocalDateStr = () => {
-    const d = new Date();
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
+  // Use Local Date for Default (Now synced via formatDate)
+  const todayStr = formatDate(new Date());
   
-  const [date, setDate] = useState<string>(getLocalDateStr());
+  const [date, setDate] = useState<string>(todayStr);
 
   const handleSave = () => {
     // Construct ISO string for the selected date at the current local time or start of day
@@ -58,7 +52,7 @@ export default function QuickEntryModal({ preset, state, onClose, onSave }: Prop
             <div className="w-20 h-20 rounded-3xl bg-gold-500/10 border border-gold-500/20 flex items-center justify-center text-4xl mb-4">
                 {preset.icon === 'cigarette' ? '🚬' : preset.icon === 'burger' ? '🍔' : preset.icon === 'coffee' ? '☕' : '🚕'}
             </div>
-            <h2 className="text-xl font-black text-white uppercase tracking-[0.2em]">{preset.label}</h2>
+            <h2 className="text-xl font-black text-dark-text uppercase tracking-[0.2em]">{preset.label}</h2>
             <p className="text-[10px] text-dark-muted font-bold tracking-widest mt-1 uppercase">Adjust & Confirm</p>
         </div>
 
@@ -70,9 +64,10 @@ export default function QuickEntryModal({ preset, state, onClose, onSave }: Prop
             </label>
             <Input 
                 type="date" 
+                max={todayStr}
                 value={date}
                 onChange={e => setDate(e.target.value)}
-                className="bg-zinc-900 border-dark-border text-center font-bold"
+                className="bg-dark-card border-dark-border text-center font-bold"
             />
           </div>
 
@@ -83,7 +78,7 @@ export default function QuickEntryModal({ preset, state, onClose, onSave }: Prop
                 type="number" 
                 value={amount}
                 onChange={e => setAmount(parseFloat(e.target.value) || 0)}
-                className="text-center text-2xl font-black text-gold-500"
+                className="bg-dark-card text-center text-2xl font-black text-gold-500"
             />
           </div>
 
@@ -93,14 +88,14 @@ export default function QuickEntryModal({ preset, state, onClose, onSave }: Prop
             <div className="flex items-center gap-4">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-12 h-12 rounded-xl bg-dark-card border border-dark-border flex items-center justify-center text-white active:scale-90 transition-all hover:border-gold-500/30"
+                  className="w-12 h-12 rounded-xl bg-dark-card border border-dark-border flex items-center justify-center text-dark-text active:scale-90 transition-all hover:border-gold-500/30"
                 >
                     <Minus size={20} />
                 </button>
-                <div className="flex-1 text-center text-3xl font-black text-white">{quantity}</div>
+                <div className="flex-1 text-center text-3xl font-black text-dark-text">{quantity}</div>
                 <button 
                   onClick={() => setQuantity(quantity + 1)}
-                  className="w-12 h-12 rounded-xl bg-dark-card border border-dark-border flex items-center justify-center text-white active:scale-90 transition-all hover:border-gold-500/30"
+                  className="w-12 h-12 rounded-xl bg-dark-card border border-dark-border flex items-center justify-center text-dark-text active:scale-90 transition-all hover:border-gold-500/30"
                 >
                     <Plus size={20} />
                 </button>
@@ -110,7 +105,7 @@ export default function QuickEntryModal({ preset, state, onClose, onSave }: Prop
           {/* Total Display */}
           <div className="bg-dark-card/50 border border-dark-border rounded-2xl p-4 flex justify-between items-center">
               <span className="text-xs font-bold text-dark-muted uppercase tracking-widest">Final Total</span>
-              <span className="text-2xl font-black text-white">₹{(amount * quantity).toLocaleString()}</span>
+              <span className="text-2xl font-black text-dark-text">₹{(amount * quantity).toLocaleString()}</span>
           </div>
 
           <Button className="w-full h-14 font-black uppercase tracking-[0.2em] text-base" onClick={handleSave}>

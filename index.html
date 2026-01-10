@@ -3,48 +3,32 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Jagruk Journal</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       :root {
-        /* Light Mode Defaults */
-        --bg-primary: #f4f4f5; /* Zinc 100 */
-        --bg-card: #ffffff;    /* White */
-        --border-color: #e4e4e7; /* Zinc 200 */
-        --text-main: #18181b;    /* Zinc 900 */
-        --text-muted: #71717a;   /* Zinc 500 */
+        --bg-primary: #f4f4f5;
+        --bg-card: #ffffff;
+        --border-color: #e4e4e7;
+        --text-main: #18181b;
+        --text-muted: #71717a;
       }
-
       .dark {
-        /* Dark Mode Defaults */
-        --bg-primary: #09090b; /* Zinc 950 */
-        --bg-card: #18181b;    /* Zinc 900 */
-        --border-color: #27272a; /* Zinc 800 */
-        --text-main: #e4e4e7;    /* Zinc 200 */
-        --text-muted: #a1a1aa;   /* Zinc 400 */
+        --bg-primary: #09090b;
+        --bg-card: #18181b;
+        --border-color: #27272a;
+        --text-main: #e4e4e7;
+        --text-muted: #a1a1aa;
       }
-
       body {
         background-color: var(--bg-primary);
         color: var(--text-main);
-        transition: background-color 0.3s ease, color 0.3s ease;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: contain;
       }
-
-      /* Custom Scrollbar */
-      ::-webkit-scrollbar {
-        width: 6px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: var(--border-color); 
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #f59e0b; 
-      }
+      .scrollbar-hide::-webkit-scrollbar { display: none; }
+      .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
     <script>
       tailwind.config = {
@@ -52,48 +36,26 @@
         theme: {
           extend: {
             colors: {
-              gold: {
-                50: '#fffbf0',
-                100: '#fef5cd',
-                200: '#fee89b',
-                300: '#fdd65e',
-                400: '#fcc02e',
-                500: '#f59e0b', // Amber-500 base
-                600: '#d97706',
-                700: '#b45309',
-                800: '#92400e',
-                900: '#78350f',
-                950: '#451a03',
-              },
-              // Dynamic Semantic Colors mapped to CSS Variables
-              dark: {
-                bg: 'var(--bg-primary)',
-                card: 'var(--bg-card)',
-                border: 'var(--border-color)',
-                text: 'var(--text-main)',
-                muted: 'var(--text-muted)',
-              }
-            },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
+              gold: { 500: '#f59e0b' },
+              dark: { bg: 'var(--bg-primary)', card: 'var(--bg-card)', border: 'var(--border-color)', text: 'var(--text-main)', muted: 'var(--text-muted)' }
             }
           }
         }
       }
     </script>
-  <script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "jspdf": "https://esm.sh/jspdf@2.5.1",
-    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.5.28"
-  }
-}
-</script>
-</head>
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+        "react/": "https://esm.sh/react@^19.2.3/",
+        "react": "https://esm.sh/react@^19.2.3",
+        "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+        "jspdf": "https://esm.sh/jspdf@2.5.1",
+        "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.5.28"
+      }
+    }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
   </body>

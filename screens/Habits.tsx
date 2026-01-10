@@ -45,37 +45,42 @@ export default function Habits({ state, onUpdateEntry, onUpdateProfile }: Props)
       onUpdateProfile({ habits: updatedHabits });
   };
 
-  // Analytics Helpers
+  // --- REFINED STREAK LOGIC ---
   const getStreak = (habit: HabitDef) => {
     let streak = 0;
-    // Check backwards from yesterday
     const d = new Date(todayStr);
-    d.setDate(d.getDate() - 1);
     
-    // Safety break loop
+    // Check consecutive days starting from today
     for (let i = 0; i < 365; i++) {
         const dateKey = formatDate(d);
         const entry = state.entries[dateKey];
         const status = entry?.habitStatus?.[habit.id];
 
         if (habit.type === 'positive') {
-            // Positive Streak: Consecutive days Done
-            if (status) streak++;
-            else break;
+            // For positive habits, streak is based on "Done"
+            if (status === true) {
+                streak++;
+            } else {
+                // If it's today and not done yet, we don't break the streak yet, 
+                // we just check if yesterday was part of a streak.
+                if (i === 0) {
+                    // Skip today if not done, but continue to see yesterday's streak
+                    d.setDate(d.getDate() - 1);
+                    continue;
+                }
+                break;
+            }
         } else {
-            // Negative Streak: Consecutive days Not Done
-            // Note: If entry doesn't exist, we assume "Not Done" (Good for negative habits)
-            if (!status) streak++;
-            else break;
+            // For negative habits, streak is based on "NOT performed"
+            if (status !== true) {
+                streak++;
+            } else {
+                // If performed today, streak is immediately broken
+                break;
+            }
         }
         d.setDate(d.getDate() - 1);
     }
-    
-    // Add today to streak if condition met
-    const todayStatus = habitStatus[habit.id];
-    if (habit.type === 'positive' && todayStatus) streak++;
-    if (habit.type === 'negative' && !todayStatus) streak++;
-
     return streak;
   };
 
@@ -93,11 +98,10 @@ export default function Habits({ state, onUpdateEntry, onUpdateProfile }: Props)
   const getMonthlyTrend = (habit: HabitDef) => {
       const days = [];
       const d = new Date(todayStr);
-      // Get last 30 days reversed (oldest to newest)
       for(let i=0; i<30; i++) {
           const dateKey = formatDate(d);
           const status = state.entries[dateKey]?.habitStatus?.[habit.id];
-          days.push({ date: dateKey, status: !!status }); // Ensure boolean
+          days.push({ date: dateKey, status: !!status });
           d.setDate(d.getDate() - 1);
       }
       return days.reverse();
@@ -108,7 +112,7 @@ export default function Habits({ state, onUpdateEntry, onUpdateProfile }: Props)
       <header className="pt-2 flex justify-between items-end">
         <div>
             <h1 className="text-3xl font-black text-dark-text tracking-tight">Habit Logs</h1>
-            <p className="text-[10px] text-dark-muted font-black uppercase tracking-[0.2em] mt-1">Consistency Tracker</p>
+            <p className="text-xs text-dark-muted font-black uppercase tracking-[0.2em] mt-1">Consistency Tracker</p>
         </div>
         <Button size="sm" onClick={() => setShowAddModal(true)} className="h-10 px-4 rounded-xl">
             <Plus size={18} /> New
@@ -142,7 +146,6 @@ export default function Habits({ state, onUpdateEntry, onUpdateProfile }: Props)
   );
 }
 
-// Local Component for Adding Habit
 function AddHabitModal({ onClose, onSave }: { onClose: () => void, onSave: (h: Omit<HabitDef, 'id'>) => void }) {
     const [data, setData] = useState<{ title: string, icon: string, type: 'positive' | 'negative' }>({
         title: '',
@@ -152,9 +155,9 @@ function AddHabitModal({ onClose, onSave }: { onClose: () => void, onSave: (h: O
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-fade-in">
-            <Card className="w-full max-w-sm bg-dark-bg border-gold-500 shadow-2xl relative">
+            <Card className="w-full max-w-sm bg-dark-bg border-gold-500 shadow-2xl relative p-6">
                 <button onClick={onClose} className="absolute top-4 right-4 text-dark-muted hover:text-white"><X size={20} /></button>
-                <h3 className="text-lg font-black text-dark-text uppercase tracking-widest mb-6">New Habit</h3>
+                <h3 className="text-sm font-black text-dark-text uppercase tracking-widest mb-6">New Habit</h3>
                 
                 <div className="space-y-5">
                     <Input label="Habit Name" value={data.title} onChange={e => setData({...data, title: e.target.value})} autoFocus placeholder="e.g. Read Books" />

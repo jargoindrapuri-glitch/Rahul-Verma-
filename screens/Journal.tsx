@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
 import { AppState, DailyEntry, Screen } from '../types';
-import { Card, Button, TextArea, Input } from '../components/UI';
+import { Card, Button } from '../components/UI';
 import { getPromptForDate, MOODS } from '../constants';
-import { ArrowLeft, ChevronDown, ChevronUp, Lock, Zap } from 'lucide-react';
+import { ChevronDown, ChevronUp, Lock } from 'lucide-react';
 
 interface Props {
   state: AppState;
@@ -26,7 +26,6 @@ export default function Journal({ state, onUpdateEntry, onNavigate }: Props) {
   ];
 
   const handleSaveAndClose = () => {
-    // Optional: Auto-lock if rating is provided
     if (entry.rating) {
         onUpdateEntry(dateStr, { isLocked: true });
     }
@@ -51,25 +50,22 @@ export default function Journal({ state, onUpdateEntry, onNavigate }: Props) {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-md mx-auto">
-      {/* Minimal Header */}
-      <header className="flex items-center justify-between pt-6 px-2">
-        <button onClick={() => onNavigate('home')} className="p-2 -ml-2 text-dark-muted hover:text-dark-text transition-all">
-            <ArrowLeft size={24} />
-        </button>
-        <span className="text-xs font-black text-dark-muted uppercase tracking-[0.3em]">Daily Log</span>
-        <div className="w-8" /> {/* Spacer for balance */}
+    <div className="space-y-8 animate-fade-in max-w-md mx-auto pb-12">
+      {/* Standardized Header matching Finance/Goals */}
+      <header className="pt-2">
+          <h1 className="text-3xl font-black text-dark-text tracking-tight">Journal</h1>
+          <p className="text-xs text-dark-muted font-black uppercase tracking-[0.2em] mt-1">Daily Reflection</p>
       </header>
 
       {/* SECTION 1: QUICK CHECK */}
       <section className="space-y-6">
-        <h3 className="text-[10px] text-gold-500 uppercase font-black tracking-[0.2em] px-1">1. Quick Check</h3>
+        <h3 className="text-xs text-gold-500 uppercase font-black tracking-[0.2em] px-1">1. Quick Check</h3>
         
-        <Card className="bg-dark-card border-transparent p-6 space-y-8 shadow-sm">
+        <Card className="bg-dark-card border-dark-border p-6 space-y-8 shadow-sm">
             {/* Discipline Slider */}
             <div>
                 <div className="flex justify-between items-end mb-4">
-                    <label className="text-sm text-dark-muted font-bold">Discipline</label>
+                    <label className="text-sm text-dark-muted font-bold uppercase tracking-wider">Discipline</label>
                     <span className="text-3xl font-black text-gold-500">{entry.rating || 5}<span className="text-sm text-dark-muted">/10</span></span>
                 </div>
                 <input 
@@ -81,7 +77,7 @@ export default function Journal({ state, onUpdateEntry, onNavigate }: Props) {
                     onChange={(e) => onUpdateEntry(dateStr, { rating: parseInt(e.target.value) })}
                     className="w-full h-3 bg-dark-bg rounded-lg appearance-none cursor-pointer accent-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 border border-dark-border"
                 />
-                <div className="flex justify-between mt-2 text-[9px] text-dark-muted font-black uppercase tracking-widest">
+                <div className="flex justify-between mt-2 text-[10px] text-dark-muted font-black uppercase tracking-widest">
                     <span>Weak</span>
                     <span>Strong</span>
                 </div>
@@ -89,7 +85,7 @@ export default function Journal({ state, onUpdateEntry, onNavigate }: Props) {
 
             {/* Energy Selector */}
             <div>
-                <label className="text-sm text-dark-muted font-bold mb-4 block">Energy</label>
+                <label className="text-sm text-dark-muted font-bold mb-4 block uppercase tracking-wider">Energy</label>
                 <div className="flex justify-between items-center bg-dark-bg rounded-2xl p-2 border border-dark-border">
                     {ENERGY_LEVELS.map((item) => (
                         <button 
@@ -107,28 +103,26 @@ export default function Journal({ state, onUpdateEntry, onNavigate }: Props) {
 
       {/* SECTION 2: THE CORE */}
       <section className="space-y-4">
-        <h3 className="text-[10px] text-gold-500 uppercase font-black tracking-[0.2em] px-1">2. Today & Tomorrow</h3>
+        <h3 className="text-xs text-gold-500 uppercase font-black tracking-[0.2em] px-1">2. Today & Tomorrow</h3>
 
         <div className="space-y-4">
-            {/* The Win */}
             <div className="bg-dark-card rounded-2xl p-4 border border-dark-border focus-within:ring-1 focus-within:ring-gold-500/30 transition-all">
                 <label className="text-[10px] text-dark-muted font-black uppercase tracking-wider mb-2 block">Today's Win</label>
                 <input 
                     placeholder="One small win is enough..."
                     value={entry.memory || ''}
                     onChange={e => onUpdateEntry(dateStr, { memory: e.target.value })}
-                    className="w-full bg-transparent border-none text-dark-text font-medium placeholder:text-dark-muted/50 focus:ring-0 text-lg p-0"
+                    className="w-full bg-transparent border-none text-dark-text font-medium placeholder:text-dark-muted/50 focus:outline-none focus:ring-0 text-lg p-0"
                 />
             </div>
 
-            {/* Tomorrow's Task */}
             <div className="bg-dark-card rounded-2xl p-4 border border-dark-border focus-within:ring-1 focus-within:ring-blue-500/30 transition-all">
                 <label className="text-[10px] text-dark-muted font-black uppercase tracking-wider mb-2 block">Tomorrow's One Task</label>
                 <input 
                     placeholder="If this is done, tomorrow is a win."
                     value={entry.intention || ''}
                     onChange={e => onUpdateEntry(dateStr, { intention: e.target.value })}
-                    className="w-full bg-transparent border-none text-dark-text font-medium placeholder:text-dark-muted/50 focus:ring-0 text-lg p-0"
+                    className="w-full bg-transparent border-none text-dark-text font-medium placeholder:text-dark-muted/50 focus:outline-none focus:ring-0 text-lg p-0"
                 />
             </div>
         </div>
@@ -138,44 +132,41 @@ export default function Journal({ state, onUpdateEntry, onNavigate }: Props) {
       <section>
         <button 
             onClick={() => setShowDeepDive(!showDeepDive)}
-            className="w-full flex items-center justify-between p-4 rounded-xl text-dark-muted hover:text-dark-text hover:bg-dark-card transition-all"
+            className="w-full flex items-center justify-between p-4 rounded-xl text-dark-muted hover:text-dark-text hover:bg-dark-card transition-all border border-transparent hover:border-dark-border"
         >
-            <span className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                {showDeepDive ? 'Collapse' : 'Something you\'re avoiding?'}
+            <span className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                {showDeepDive ? 'Collapse' : 'Mental Deep Dive'}
             </span>
             {showDeepDive ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
 
         {showDeepDive && (
             <div className="space-y-4 mt-4 animate-slide-up">
-                 {/* Gratitude */}
                  <div className="bg-dark-card rounded-2xl p-4 border border-dark-border">
                     <label className="text-[10px] text-dark-muted font-black uppercase tracking-wider mb-2 block">Gratitude</label>
                     <input 
                         placeholder="I am grateful for..."
                         value={entry.gratitude || ''}
                         onChange={e => onUpdateEntry(dateStr, { gratitude: e.target.value })}
-                        className="w-full bg-transparent border-none text-dark-text font-medium placeholder:text-dark-muted/50 focus:ring-0 p-0"
+                        className="w-full bg-transparent border-none text-dark-text font-medium placeholder:text-dark-muted/50 focus:outline-none focus:ring-0 p-0"
                     />
                 </div>
 
-                {/* The Prompt */}
                 <div className="bg-dark-card rounded-2xl p-6 border border-dark-border">
-                    <p className="text-xs font-bold text-dark-muted mb-4 italic">"{dailyPrompt}"</p>
-                    <TextArea 
+                    <p className="text-[10px] font-black text-dark-muted uppercase tracking-widest mb-4 italic opacity-80">"{dailyPrompt}"</p>
+                    <textarea 
                         placeholder="Unload your mind here..." 
                         value={entry.promptAnswer || ''} 
                         onChange={e => onUpdateEntry(dateStr, { promptAnswer: e.target.value })} 
-                        className="bg-transparent border-none p-0 text-sm leading-relaxed min-h-[100px] focus:ring-0 placeholder:text-dark-muted/50 text-dark-text" 
+                        className="w-full bg-transparent border-none p-0 text-sm leading-relaxed min-h-[120px] focus:outline-none focus:ring-0 placeholder:text-dark-muted/50 text-dark-text resize-none" 
                     />
                 </div>
 
-                {/* Mood - Moved here to reduce noise */}
                 <div>
-                     <label className="text-[10px] text-dark-muted font-black uppercase tracking-wider mb-3 block text-center">Current Mood</label>
-                     <div className="flex justify-between items-center px-4">
+                     <label className="text-[10px] text-dark-muted font-black uppercase tracking-wider mb-4 block text-center">Atmosphere</label>
+                     <div className="flex justify-between items-center px-6">
                         {MOODS.map(m => (
-                            <button key={m.value} onClick={() => onUpdateEntry(dateStr, { mood: m.value })} className={`text-2xl transition-all ${entry.mood === m.value ? 'scale-150 opacity-100 filter drop-shadow-lg' : 'opacity-20 grayscale'}`}>{m.label}</button>
+                            <button key={m.value} onClick={() => onUpdateEntry(dateStr, { mood: m.value })} className={`text-3xl transition-all ${entry.mood === m.value ? 'scale-150 opacity-100 filter drop-shadow-xl' : 'opacity-20 grayscale hover:opacity-50'}`}>{m.label}</button>
                         ))}
                     </div>
                 </div>
@@ -183,16 +174,16 @@ export default function Journal({ state, onUpdateEntry, onNavigate }: Props) {
         )}
       </section>
 
-      {/* SAVE BUTTON */}
-      <div className="mt-8">
+      {/* SAVE BUTTON - Static but prominent */}
+      <div className="pt-10">
         <Button 
             variant="primary" 
-            className="w-full h-14 font-black uppercase tracking-[0.2em] rounded-2xl shadow-2xl shadow-gold-500/20" 
+            className="w-full h-16 font-black uppercase tracking-[0.2em] rounded-2xl shadow-2xl shadow-gold-500/20 text-lg" 
             onClick={handleSaveAndClose}
         >
-            Save & Close
+            Commit & Close
         </Button>
-        <p className="text-[9px] text-center text-dark-text font-bold uppercase tracking-widest mt-3">Journal will be sealed</p>
+        <p className="text-[10px] text-center text-dark-text font-bold uppercase tracking-widest mt-4 opacity-50">Journal will be locked after saving</p>
       </div>
     </div>
   );

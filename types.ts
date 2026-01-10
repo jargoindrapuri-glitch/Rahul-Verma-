@@ -1,5 +1,4 @@
 
-
 export type Screen = 'onboarding' | 'home' | 'journal' | 'finance' | 'goals' | 'settings' | 'habits';
 
 export type BudgetMode = 'none' | 'daily' | 'weekly' | 'monthly';
@@ -26,6 +25,10 @@ export interface UserProfile {
   reminderMorning: string;
   isOnboarded: boolean;
   
+  // Gamification
+  xp: number;
+  level: number;
+
   // Finance Settings
   dailyBudget?: number;
   budgetMode?: BudgetMode;
@@ -47,6 +50,7 @@ export interface ToDoItem {
   completed: boolean;
   priority?: TaskPriority;
   category?: string;
+  linkedGoalId?: string; // Dependency Tree Link
 }
 
 export interface DailyEntry {
